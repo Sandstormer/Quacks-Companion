@@ -132,7 +132,7 @@ button {
 .controlsUpper button {
     aspect-ratio: 1;
     min-width: 52px;
-    font-size: 4vw;
+    font-size: max(4vw, 16px);
 }
 .controlsLower {
     margin: 8px;
