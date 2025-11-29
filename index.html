@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quacks Companion</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="mainContainer">
+    <div id="splashScreen">
+      <div id="splashContent">
+        <div id="splashHeader">Action Log:</div>
+        <div id="splashScrollable"></div>
+        <div id="splashFooter">
+          <button id="splashBtn">Return to game</button>
+        </div>
+      </div>
+    </div>
+    <div class="controlsUpper">
+      <button id="logBtn">Log</button>
+      <button id="rulesBtn">Rules</button>
+      <button id="endBtn">End</button>
+      <button id="witchBtn">Witch</button>
+      <button id="potionBtn">Potion</button>
+    </div>
+    <!-- <div id="drawnContainer">
+      <div id="drawnChipsContainer" class="chips"></div>
+    </div> -->
+    <div id="trackContainer">
+      <div id="trackChipsContainer"></div>
+    </div>
+    <div id="bagChipsContainer">
+        <canvas id="chipsCanvas"></canvas>
+    </div>
+    <div class="controlsLower">
+      <div id="whiteContainer">
+        <div id="whiteCounter">0/7</div>
+        <div id="whiteOdds">0%</div>
+      </div>
+      <button id="drawBtn">Draw Chip</button>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

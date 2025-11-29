@@ -1,0 +1,299 @@
+
+html {
+    font-size: 24px;
+}
+body {
+    text-align: center;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    background-color: #000000;
+    padding: 0px;
+    overflow-x: hidden;
+    color: #ffffff;
+    font-family: Arial, Helvetica, sans-serif, sans-serif;
+}
+#mainContainer {
+    display: flex;
+    flex-direction: column;
+    min-width: 300px;
+    width: 100vw;
+    max-width: min(500px, 100vw);
+    min-height: 500px;
+    height: 100vh;
+    max-height: min(900px, 100vh);
+    margin: auto;
+    background: #151019;
+    border-radius: 8px;
+}
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.chip, .trackSpace {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border: 2px solid #0E0B11;
+    border-radius: 50%;
+    outline: 1px solid #0E0B11;
+    outline-offset: -5px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    justify-content: center;
+    align-items: center;
+    color: black;
+    font-weight: bold;
+    font-size: 24px;
+}
+.chip {
+    /* Outer and inner rings as box-shadow instead of pseudo-elements */
+    box-shadow:
+        inset 0 0 0 8px rgba(0,0,0,0.5),   /* outer ring */
+        inset 0 0 0 12px rgba(0,0,0,0.3);  /* inner ring */
+    /* Promote to GPU layer for smoother zoom/animations */
+    transform: translateZ(0);
+    will-change: transform;
+}
+.trackSpace {
+    background-color: mediumspringgreen;
+}
+.trackGold, .trackVP {
+    font-size: 14px;
+    font-family: monospace;
+    color: black;
+}
+.trackGold {
+    background-color: gold;
+    border: 1px solid black;
+    border-radius: 50%;
+    width: 20px;
+    height: 18px;
+    padding-top: 2px;
+}
+.trackVP {
+    background-color: burlywood;
+    border: 1px solid black;
+    width: 17px;
+    height: 17px;
+}
+button {
+    padding: 5px;
+    border-radius: 4px;
+    display: inline-block;
+    background-color: #0E0B11;
+    border: 2px solid #29252D;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+}
+#trackChipsContainer {
+    max-width: calc(100vw - 20px);
+    overflow-x: scroll;
+    height: 64px;
+    display: grid;
+    grid-template-columns: repeat(54, 60px);
+    gap: 10px;
+    padding: 10px;
+    background-color: mediumseagreen;
+}
+#drawnContainer {
+    background-color: #252129;
+    border-radius: 15px;
+    margin: 10px 10px;
+    padding: 5px;
+    overflow-y: scroll;
+}
+#bagChipsContainer {
+    background-color: #252129;
+    border-radius: 15px;
+    margin: 10px 10px 0px;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+#chipsCanvas {
+    display: block;
+    height: 100%;
+    width: 100%;
+    /* background: rgba(255,0,0,0.1); */
+}
+.controlsUpper {
+    margin: 8px;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(5, 1fr);
+}
+.controlsUpper button {
+    aspect-ratio: 1;
+    min-width: 52px;
+    font-size: 4vw;
+}
+.controlsLower {
+    margin: 8px;
+    height: 85px;
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    align-items: center;
+}
+#whiteCounter {
+    color: gray;
+}
+#whiteOdds {
+    color: gray;
+}
+#drawBtn {
+    width: 100%;
+    height: 100%;
+    font-size: 30px;
+}
+#splashScreen {
+    display: none;
+    position: fixed;
+    top: -10%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 10vh 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+.show {
+    display: flex !important;
+    flex-direction: column;
+}
+#splashHeader {
+    margin-bottom: 10px;
+}
+#splashContent {
+    text-align: center;
+    padding: 15px 10px;
+    border: 1px solid #ffffff;
+    border-radius: 12px;
+    background-color: #151019;
+    width: 330px;
+    position: relative;
+    max-height: calc(100vh - 100px);
+}
+
+/* Confirmation Splash Screen */
+.confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+.confirm-box {
+    background-color: #151019;
+    padding: 20px;
+    border: 1px solid #ffffff;
+    border-radius: 4px;
+    width: 330px;
+    max-width: 90%;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    font-family: sans-serif;
+}
+.confirm-title {
+    margin: 0;
+    font-size: 24px;
+}
+.confirm-message {
+    margin-top: 10px;
+    line-height: 1.4;
+    overflow-y: scroll;
+    -ms-overflow-style: none;
+    margin-bottom: 5px;
+    font-size: 18px;
+    line-height: 150%;
+    max-height: calc(100vh - 300px);
+}
+.msgGold {
+    font-size: 26px;
+    color: gold;
+}
+.witch-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.log-row {
+    display: grid;
+    grid-template-columns: 50px 1fr;
+    align-items: center;
+    color: darkgray;
+}
+.confirm-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+.confirm-btn {
+    flex: 1;
+    padding: 12px;
+    font-size: 18px;
+    border-radius: 8px;
+    border: none;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+.confirm-hold-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: rgba(255, 255, 255, 0.4);
+    transition: width 0s;
+}
+
+/* Chip Selector Splash Screen */
+.chip-selector {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
+}
+.chip-selector-row, .chip-selector-item {
+    align-items: center;
+    justify-content: center;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+}
+.chip-selector-item {
+    padding: 5px;
+    gap: 5px;
+    background-color: #252129;
+    border-radius: 5px;
+}
+.chip-selector-item.selected {
+    border-color: gold;
+    background: #fff6c1;
+}
+.chip-selector-item.flash-red {
+    animation: flashRedSelector 400ms ease-out;
+}
+@keyframes flashRedSelector {
+    0% { background-color: #ff3b30; }
+    15% { background-color: #ff3b30; }
+    100% { background-color: #252129; }
+}
