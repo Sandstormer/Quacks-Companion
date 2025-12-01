@@ -150,11 +150,7 @@ for (const color in chipVariants) { // List the chip costs of only the selected 
     const variant = chipVariants[color];
     chipCosts[color] = chipAllVariants[color][variant];
 }
-// let chipBuyOrder2 = [];
-// for (const color in chipCosts) { // List the chip costs of only the selected variants
-//     const variant = chipVariants[color];
-//     chipBuyOrder2[color] = chipAllVariants[color][variant];
-// }
+let prevBuyPhase = {gold: 0, chips: []};
 
 const mainContainer = document.getElementById('mainContainer');
 mainContainer.style.maxHeight = document.documentElement.clientHeight + 'px';
@@ -236,27 +232,25 @@ function placeChip(chip) {
     thisTrackSpace.style.background = chipColors[chip.color];
     thisTrackSpace.textContent = chip.value;
     updateWhiteCount();
-    // renderAll();
     if (chip.color == 'blue' && chipVariants.blue == 'A') bluePeeking(chip.value);
 }
 function bluePeeking(value) { // Peek at multiple chips, and you may place one
     writeToLog(`Blue effect peeked at ${value} chips`, chipColors.blue);
-    showConfirmSplash({
+    showSelectorSplash({
         title: "Blue Effect",
         message: "You may place 1 chip in your pot",
-        cancelText: "",
-        confirmText: "Place chip",
         holdToConfirm: false,
-        chipPickOrder: [grabChipFromBag(value)],
-        gold: 100,
+        chipsToSelect: [grabChipFromBag(value)],
         maxSelect: 1,
-        onConfirm: (selectedChips) => placeChip(removeChipFromBag(selectedChips[0])) // Place selected chip
+        showGold: false,
+        onConfirm: (selectedChips) => {console.log(selectedChips);placeChip(removeChipFromBag(selectedChips[0]))} // Place selected chip
     });
 }
 function yellowReturn() {
     resetTrackSpace(currentSpace);
     const [chip] = drawnChips.splice(drawnChips.length-2,1);
     writeToLog(`Yellow effect returned ${chip.color} ${chip.value}-chip`, chipColors.yellow);
+    chip.body = spawnChip(chip.color, chip.value)
     availableChips.push(chip);
 }
 
@@ -269,10 +263,10 @@ function usePotion() {
         trackSpaces[currentSpace].scrollIntoView({behavior: "smooth", inline: "center"});
         // Put chip back into bag
         const chip = drawnChips.pop();
+        chip.body = spawnChip(chip.color, chip.value)
         availableChips.push(chip);
         writeToLog(`Used potion on ${chip.color} ${chip.value}-chip`);
         updateWhiteCount();
-        // renderAll();
     }
 }
 function resetTrackSpace(index) {
@@ -286,10 +280,13 @@ function updateWhiteCount() {
     whiteCounter.innerHTML = `${currentWhite}/${currentWhiteMax}`;
     if (currentWhite > currentWhiteMax) {
         writeToLog(`Pot exploded with ${currentWhite} white chips!`,chipColors.red)
+        createBustForce();
         whiteOdds.innerHTML = 'BUST!';
+        drawBtn.innerHTML = 'BUST!';
     } else {
         const odds = Math.ceil(availableChips.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + currentWhite) > currentWhiteMax), 0)/availableChips.length*100);
         whiteOdds.innerHTML = `${odds}%`;
+        drawBtn.innerHTML = 'Draw Chip';
     };
 }
 
@@ -306,102 +303,122 @@ function showConfirmSplash({
     confirmText = "",
     onConfirm = () => {},
     holdToConfirm = false,
-    chipPickOrder = null,
-    maxSelect = 2,
-    gold = 0
 }) {
     const overlay = quickElement("div","confirm-overlay");
     const box = quickElement("div","confirm-box");
     const titleElem = quickElement("h2","confirm-title",title);
-    if (title) box.appendChild(titleElem);
     const msgElem = quickElement("p","confirm-message",message)
-    if (message) box.appendChild(msgElem);
-    
-    let selected = [];
-    // If chip selection mode is enabled
-    if (chipPickOrder) {
-        const chipList = document.createElement("div");
-        chipList.className = "chip-selector";
-
-        chipPickOrder.forEach(thisBuyRow => {
-            const chipRow = document.createElement("div");
-            chipRow.className = "chip-selector-row"
-            thisBuyRow.forEach(chip => {
-                const itemDiv = document.createElement("div");
-                itemDiv.className = "chip-selector-item";
-
-                const thisColor = chip.color;
-                const value = chip.value;
-                const cost = chipCosts[thisColor][value];
-
-                const chipIcon = document.createElement("div");
-                chipIcon.className = "chip";
-                chipIcon.style.background = chipColors[thisColor];
-                chipIcon.textContent = value;
-                itemDiv.appendChild(chipIcon);
-
-                if (gold != 100) {
-                    const goldIcon = document.createElement("div");
-                    goldIcon.className = "trackGold";
-                    goldIcon.textContent = cost;
-                    itemDiv.appendChild(goldIcon);
-                }
-
-                chipRow.appendChild(itemDiv);
-                itemDiv.addEventListener("click", () => {
-                    if (selected.includes(chip)) { // Unselect
-                        selected = selected.filter(x => x !== chip);
-                        itemDiv.classList.remove("selected");
-                    } else { // Select if possible
-                        if (maxSelect == 1) { // Swap single selection
-                            if (cost > gold) {
-                                flashRed(itemDiv);
-                            } else {
-                                chipList.querySelectorAll('.chip-selector-item').forEach(e => e.classList.remove('selected'));
-                                selected = [chip];
-                                itemDiv.classList.add("selected");
-                            }
-                        } else if ( (selected.length >= maxSelect) // Limit amount
-                            || (cost + selected.reduce((sum, c) => sum + chipCosts[c.color][c.value], 0) > gold) // Need enough gold
-                            || (selected.some(c => c.color == thisColor)) ) { // No same color
-                                flashRed(itemDiv);
-                        } else { // Add chip to selected
-                            selected.push(chip);
-                            itemDiv.classList.add("selected");
-                        }
-                    }
-                });
-            });
-            chipList.appendChild(chipRow);
-        });
-        box.appendChild(chipList);
-    }
-
     const btnRow = quickElement("div","confirm-buttons");
-    if (cancelText) {
-        const cancelBtn = createButton({
-            buttonText: cancelText,
-            buttonColor: chipColors.blue,
-            onClick: () => document.body.removeChild(overlay)
-        });
-        btnRow.appendChild(cancelBtn);
-    }
-    if (confirmText) {
-        const confirmBtn = createButton({
-            buttonText: confirmText,
-            onClick: () => {
-                document.body.removeChild(overlay);
-                onConfirm(selected);
-            },
-            holdToClick: holdToConfirm
-        });
-        btnRow.appendChild(confirmBtn);
-    }
+    const cancelBtn = createButton({
+        buttonText: cancelText,
+        buttonColor: chipColors.blue,
+        onClick: () => document.body.removeChild(overlay)
+    });
+    const confirmBtn = createButton({
+        buttonText: confirmText,
+        onClick: () => {
+            document.body.removeChild(overlay);
+            onConfirm();
+        },
+        holdToClick: holdToConfirm
+    });
 
+    if (title) box.appendChild(titleElem);
+    if (message) box.appendChild(msgElem);
+    if (cancelText) btnRow.appendChild(cancelBtn);
+    if (confirmText) btnRow.appendChild(confirmBtn);
+    
     box.appendChild(btnRow);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
     if (title.includes('Log')) msgElem.scrollTop = msgElem.scrollHeight;
+}
+function showSelectorSplash({
+    title = "",
+    message = "",
+    onConfirm = () => {},
+    holdToConfirm = false,
+    chipsToSelect = null,
+    maxSelect = 2,
+    gold = 100,
+    showGold = true,
+}) {
+    let selectedChips = [];
+    const overlay = quickElement("div","confirm-overlay");
+    const box = quickElement("div","confirm-box");
+    const titleElem = quickElement("h2","confirm-title",title);
+    const msgElem = quickElement("p","confirm-message",message)
+    const btnRow = quickElement("div","confirm-buttons");
+    const confirmBtn = createButton({
+        buttonText: "Skip",
+        onClick: () => {
+            document.body.removeChild(overlay);
+            onConfirm(selectedChips);
+        },
+        holdToClick: holdToConfirm
+    });
+    confirmBtn.updateText = (numSelected) => { 
+        if (numSelected == 0) confirmBtn.firstChild.textContent = "Skip";
+        if (numSelected != 0 && showGold) confirmBtn.firstChild.textContent = `Buy ${numToText(numSelected)}`;
+        if (numSelected != 0 && !showGold) confirmBtn.firstChild.textContent = `Place ${numToText(numSelected)}`;
+    };
+
+    if (title) box.appendChild(titleElem);
+    if (message) box.appendChild(msgElem);
+    btnRow.appendChild(confirmBtn);
+    
+    const chipList = quickElement("div","chip-selector");
+    chipsToSelect.forEach(thisBuyRow => {
+        const chipRow = quickElement("div","chip-selector-row");
+
+        thisBuyRow.forEach(chip => {
+            const itemDiv = quickElement("div","chip-selector-item");
+            const chipIcon = quickElement("div","chip",chip.value);
+            chipIcon.style.background = chipColors[chip.color];
+            itemDiv.appendChild(chipIcon);
+            
+            const cost = chipCosts[chip.color][chip.value];
+            const goldIcon = quickElement("div","trackGold",cost);
+            if (showGold) itemDiv.appendChild(goldIcon)
+
+            chipRow.appendChild(itemDiv);
+            itemDiv.addEventListener("click", () => {
+                if (selectedChips.includes(chip)) { // Unselect
+                    selectedChips = selectedChips.filter(x => x !== chip);
+                    itemDiv.classList.remove("selected");
+                } else { // Select if possible
+                    if (maxSelect == 1) { // Swap single selection
+                        if (cost > gold) {
+                            flashRed(itemDiv);
+                        } else {
+                            chipList.querySelectorAll('.chip-selector-item').forEach(e => e.classList.remove('selected'));
+                            selectedChips = [chip];
+                            itemDiv.classList.add("selected");
+                        }
+                    } else if ( (selectedChips.length >= maxSelect) // Limit amount
+                        || (cost + selectedChips.reduce((sum, c) => sum + chipCosts[c.color][c.value], 0) > gold) // Need enough gold
+                        || (selectedChips.some(c => c.color == chip.color)) ) { // No same color
+                            flashRed(itemDiv);
+                    } else { // Add chip to selected
+                        selectedChips.push(chip);
+                        itemDiv.classList.add("selected");
+                    }
+                }
+                confirmBtn.updateText(selectedChips.length);
+            });
+        });
+        chipList.appendChild(chipRow);
+    });
+    box.appendChild(chipList);
+
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+}
+function numToText(num) {
+    const text = ['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
+    if (num >= text.length) return `${num} chips`;
+    return `${text[num]} chip${num==1?'':'s'}`;
 }
 function createButton({
     buttonText = "OK",
@@ -468,17 +485,20 @@ endBtn.addEventListener('click', () =>
 );
 function enterBuyPhase(gold = trackSpaces[currentSpace+1].gold) {
     writeToLog(`Ended round`);
-    showConfirmSplash({
+    prevBuyPhase.gold = gold;  prevBuyPhase.chips = [];
+    showSelectorSplash({
         title: "End of Round",
         message: `Spend up to <span class="msgGold">${gold}</span> gold on 2 chips`,
         cancelText: "",
         confirmText: "Purchase",
         holdToConfirm: true,
-        chipPickOrder: chipBuyOrder,
+        chipsToSelect: chipBuyOrder,
         gold: gold,
         onConfirm: (selectedChips) => {
             selectedChips.forEach(thisChip => {
-                bagChips.push({ color:thisChip.color, value:thisChip.value });
+                const chip = { color:thisChip.color, value:thisChip.value }; // Must be new object
+                bagChips.push(chip);
+                prevBuyPhase.chips.push(chip);
                 writeToLog(`Bought ${thisChip.color} ${thisChip.value}-chip`, 'green');
             });
             restartRound();
@@ -490,16 +510,15 @@ function restartRound() {
     drawnChips = [];
     Matter.Composite.clear(world, false);
     const wallProperties = { isStatic: true, render: { visible: false } };
-    const walls = [
-        Matter.Bodies.rectangle(canvas.width / 2, canvas.height + 20, canvas.width, 40, wallProperties),
-        Matter.Bodies.rectangle(-20, canvas.height / 2, 40, canvas.height, wallProperties),
-        Matter.Bodies.rectangle(canvas.width + 20, canvas.height / 2, 40, canvas.height, wallProperties)
+    const walls = [ // rectangle(x_center, y_center, width, height, options)
+        Matter.Bodies.rectangle(canvas.width / 2, canvas.height + 20, canvas.width, 40, wallProperties), // floor
+        Matter.Bodies.rectangle(-20, 0, 40, canvas.height*2, wallProperties), // left
+        Matter.Bodies.rectangle(canvas.width + 20, 0, 40, canvas.height*2, wallProperties) // right
     ];
     Matter.Composite.add(world, walls);
     updateWhiteCount();
     initializeBoard();
     addPhysicsChips(availableChips);
-    // renderAll();
 }
 //////////////////// vvvvvvvvvvvvv
 // === Setup Matter.js ===
@@ -530,7 +549,6 @@ function resizeCanvasToParent() {
 // --- Matter.js setup ---
 const engine = Matter.Engine.create();
 const world = engine.world;
-
 const render = Matter.Render.create({
     canvas: canvas,
     engine: engine,
@@ -584,7 +602,6 @@ function spawnChip(color, value) {
 }
 function createShockwave(originBody, radius = 200, forceMagnitude = 0.02) {
     const bodies = Matter.Composite.allBodies(world);
-
     bodies.forEach(body => {
         if (body === originBody) return;
         const dx = body.position.x - originBody.position.x;
@@ -598,6 +615,12 @@ function createShockwave(originBody, radius = 200, forceMagnitude = 0.02) {
         }
     });
 }
+function createBustForce(forceMagnitude = 0.15) {
+    const bodies = Matter.Composite.allBodies(world);
+    bodies.forEach(body => {
+        Matter.Body.applyForce(body, body.position, { x:0, y:forceMagnitude*(0.7+Math.random()*0.6) });
+    });
+}
 function removeChipFromBag(chip) {
     if (chip == undefined) return;
     availableChips = availableChips.filter(c => c != chip); // Remove chip from current bag
@@ -609,7 +632,6 @@ function removeChipFromBag(chip) {
     drawnChips.push(chip);
     return chip;
 }
-
 
 //////////////////// ^^^^^^^^^^^^^
 function renderDrawnChips(chips) {
@@ -657,27 +679,28 @@ function showWitchMenu() {
     const redoButton = createButton({
         buttonText: "Re-do buy phase",
         buttonColor: chipColors.blue,
-        onClick: () => enterBuyPhase()
+        onClick: () => {
+            prevBuyPhase.chips.forEach(chip => bagChips = bagChips.filter(c => c != chip));
+            enterBuyPhase(prevBuyPhase.gold);
+        }
     });
     witchContainer.appendChild(redoButton);
 
     const freeButton = createButton({
         buttonText: "Add chip to bag",
         buttonColor: chipColors.blue,
-        onClick: () => showConfirmSplash({
+        onClick: () => showSelectorSplash({
             title: "Add chip to bag for free",
             message: "",
-            cancelText: "",
             confirmText: "Add chip to bag",
             holdToConfirm: true,
-            chipPickOrder: chipBuyOrder,
-            gold: 1000,
+            chipsToSelect: chipBuyOrder,
             maxSelect: 1,
             onConfirm: (selectedChips) => {
                 selectedChips.forEach(thisChip => {
-                    bagChips.push(thisChip);
-                    availableChips.push(thisChip);
-                    writeToLog(`Addedd ${thisChip.color} ${thisChip.value}-chip for free`, 'pink');
+                    bagChips.push({ color:thisChip.color, value:thisChip.value });
+                    availableChips.push({ color:thisChip.color, value:thisChip.value });
+                    writeToLog(`Added ${thisChip.color} ${thisChip.value}-chip for free`, 'pink');
                 });
                 document.body.removeChild(overlay);
             }
