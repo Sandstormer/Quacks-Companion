@@ -18,15 +18,15 @@ const starterChips = [
     // { color: 'yellow', value: 1 },
     // { color: 'yellow', value: 2 },
     // { color: 'yellow', value: 4 },
-    // { color: 'blue', value: 1 },
-    // { color: 'blue', value: 2 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 1 },
-    // { color: 'blue', value: 2 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 1 },
-    // { color: 'blue', value: 2 },
-    // { color: 'blue', value: 4 },
+    { color: 'blue', value: 1 },
+    { color: 'blue', value: 2 },
+    { color: 'blue', value: 4 },
+    { color: 'blue', value: 1 },
+    { color: 'blue', value: 2 },
+    { color: 'blue', value: 4 },
+    { color: 'blue', value: 1 },
+    { color: 'blue', value: 2 },
+    { color: 'blue', value: 4 },
 
     // { color: 'white', value: 1 },
     // { color: 'white', value: 1 },
@@ -93,7 +93,7 @@ const starterChips = [
 ];
 const spaceValues = [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0,1],[6,1],[7,1],[8,1],[9,1,1],[10,2],[11,2],[12,2],[13,2,1],[14,3],[15,3],[15,3,1],[16,3],[16,4],[17,4],[17,4,1],[18,4],[18,5],[19,5],[19,5,1],[20,5],[20,6],[21,6],[21,6,1],[22,7],[22,7,1],[23,7],[23,8],[24,8],[24,8,1],[25,9],[25,9,1],[26,9],[26,10],[27,10],[27,10,1],[28,11],[28,11,1],[29,11],[29,12],[30,12],[30,12,1],[31,12],[31,13],[32,13],[32,13,1],[33,14],[33,14,1],[35,15]];
 const chipColors = {white:'white', black:'black', orange:'peru', green:'green', red:'firebrick', blue:'royalblue', yellow:'gold', purple:'blueviolet', droplet:'gray', rat:'gray'}
-const chipAllVariants = {
+const chipCostVariants = {
     green:{
         A:{ 1:8, 2:13, 4:22 },
         B:{ 1:9, 2:15, 4:24 }
@@ -121,6 +121,48 @@ const chipAllVariants = {
         A:{ 1:0, 2:0, 3:0 }
     }
 };
+const chipDescVariants = {
+    green:{
+        A:"After the round, if this is one of your last two chips placed, you get a ruby.",
+        B:"After the round, if this is one of your last two chips placed, you get an orange chip / blue-red chip / yellow-purple chip.",
+        C:"At the end of the round, if your white chips add to exactly 7, add up all your green chips, and move your last chip that many spaces.",
+        D:"After the round, if this is one of your last two chips placed, you can pay a ruby to move your droplet one space.",
+    },
+    red:{
+        A:"If you have placed an orange chip, move this chip an extra space. If you have 3 orange chips, move an extra 2 spaces instead.",
+        B:"Put this chip aside. At the end of the round, you can choose to place it, or save it for a later round.",
+        C:"If the previous placed chip was white, move this chip extra spaces according to that chip's value.",
+        D:"After you have placed one red chip, each white 1-chip is moved an additional space.",
+    },
+    blue:{
+        A:"If you draw a blue 1/2/4-chip, peek at 1/2/4 chips from your bag. You may place one of those chips.",
+        B:"If you draw a blue 1/2/4-chip, you are protected from busting for the next 1/2/4 chips. You still get gold and victory points, but can't roll the victory die.",
+        C:"If you place this chip onto a ruby space, you immediately get a ruby.",
+        D:"If you place a blue 1/2/4-chip onto a ruby space, you immediately get 1/2/4 victory points.",
+    },
+    yellow:{
+        A:"If the previous placed chip was white, put that white chip back into the bag.",
+        B:"The next chip placed is moved twice as many spaces.",
+        C:"After you have placed one yellow chip, the white threshold is increased to 8. If you have 3 yellow chips, it increases to 9.",
+        D:"If this is your 1st/2nd/3rd yellow chip placed, it is moved an extra 1/2/3 spaces.",
+    },
+    orange:{
+        A:"No additional effect.",
+    },
+    black:{
+        A:"If you placed more black chips than a player next to you, move your droplet. If you have more than both players next to you, also take a ruby.",
+        B:"If you placed as many black chips as the other player, move your droplet. If you have more, also take a ruby.",
+    },
+    purple:{
+        A:"After the round, if you drew 1/2/3 purple chips, you get 1 VP / 1 VP & ruby / 2 VP & droplet.",
+        B:"After the round, you can trade in all the purple chips you've drawn for the bonus. xxxxxxxxxx",
+        C:"When you place this chip, you get get VP for every 10 gold, rounded down. xxxxxxxxxxxxxx",
+        D:"After the round, if you drew 1/2/3 purple chips, you may upgrade another chip's value by 1/2/3.",
+    },
+    white:{
+        A:"No additional effect. If your white chips add up to more than 7, you lose the round.",
+    }
+}
 const chipBuyOrder = [
     [
         { color: 'green', value: 1 },
@@ -144,13 +186,15 @@ const chipBuyOrder = [
         { color: 'purple', value: 1 },
     ]
 ];
-let chipVariants = { green:'A', red:'A', blue:'A', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
+let chipVariants = { green:'A', red:'A', blue:'C', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
 let chipCosts = {};
+let chipDesc = {};
 for (const color in chipVariants) { // List the chip costs of only the selected variants
     const variant = chipVariants[color];
-    chipCosts[color] = chipAllVariants[color][variant];
+    chipCosts[color] = chipCostVariants[color][variant];
+    chipDesc[color] = chipDescVariants[color][variant];
 }
-let prevBuyPhase = {gold: 0, chips: []};
+let prevBuyPhase = { gold: 0, chips: [] };
 
 const mainContainer = document.getElementById('mainContainer');
 mainContainer.style.maxHeight = document.documentElement.clientHeight + 'px';
@@ -184,13 +228,10 @@ function initializeBoard() {
     currentSpace = 0;
     trackSpaces = [];
     trackChipsContainer.innerHTML = '';
-    spaceValues.forEach(thisValue => {
+    spaceValues.forEach((_,index) => {
         const newSpace = document.createElement('div');
-        newSpace.className = 'trackSpace';
-        newSpace.gold = thisValue[0];
-        newSpace.vicPts = thisValue[1];
-        newSpace.innerHTML = `<div class="trackGold">${newSpace.gold}</div><div class="trackVP">${newSpace.vicPts}</div>`;
         trackSpaces.push(newSpace);
+        resetTrackSpace(index);
         trackChipsContainer.appendChild(newSpace);
     });
     placeChip(dropletStats);
@@ -216,21 +257,37 @@ function grabChipFromBag(multiDraw = 0) {
         return availableChips[index];
     }
 }
+function removeChipFromBag(chip) {
+    if (chip == undefined) return;
+    availableChips = availableChips.filter(c => c != chip); // Remove chip from current bag
+    if (chip.body) {
+        Matter.Composite.remove(world, chip.body); // Remove physics chip from world
+        createShockwave(chip.body, 150, 0.03);
+    }
+    writeToLog(`Placed ${chip.color} ${chip.value}-chip`);
+    drawnChips.push(chip);
+    return chip;
+}
 function placeChip(chip) {
     if (chip == undefined) return;
     // Calculate chip effects
     let spaces = chip.value;
     if (chip.color == 'red' && chipVariants.red == 'A' && drawnChips.filter(c => c.color=='orange').length > 0) spaces += 1;
     if (chip.color == 'red' && chipVariants.red == 'A' && drawnChips.filter(c => c.color=='orange').length > 2) spaces += 1;
+    if (chip.color == 'red' && chipVariants.red == 'C' && drawnChips[drawnChips.length-2]?.color == 'white') spaces += drawnChips[drawnChips.length-2]?.value;
+    if (chip.color == 'white' && chipVariants.red == 'D' && chip.value == 1 && drawnChips.filter(c => c.color == 'red').length) spaces += 1;
     if (chip.color == 'yellow' && chipVariants.yellow == 'A' && drawnChips[drawnChips.length-2]?.color == 'white') yellowReturn();
     if (chip.color == 'red' && chipVariants.red == 'delayed') { redSaveForLater(chip); return; } // can't actually place later...
     // Render the chip onto the track space
     currentSpace = Math.min(trackSpaces.length-2, currentSpace+spaces);
+    if (chip.color == 'blue' && chipVariants.blue == 'C' && spaceValues[currentSpace][2]) awardVPR(0,1,chip);
+    if (chip.color == 'blue' && chipVariants.blue == 'D' && spaceValues[currentSpace][2]) awardVPR(chip.value,0,chip);
     const thisTrackSpace = trackSpaces[currentSpace];
     thisTrackSpace.scrollIntoView({behavior: "smooth", inline: "center"});
     thisTrackSpace.className = 'chip';
     thisTrackSpace.style.background = chipColors[chip.color];
-    thisTrackSpace.textContent = chip.value;
+    const rubyElem = spaceValues[currentSpace][2] ? '<img src="ui/ruby.png" class="trackRuby"</img>' : '';
+    thisTrackSpace.innerHTML = `${rubyElem}${chip.value}`;
     updateWhiteCount();
     if (chip.color == 'blue' && chipVariants.blue == 'A') bluePeeking(chip.value);
 }
@@ -253,6 +310,21 @@ function yellowReturn() {
     chip.body = spawnChip(chip.color, chip.value)
     availableChips.push(chip);
 }
+function awardVPR(VP = 0, ruby = 0, chip = null) {
+    const newChip = quickElement('div','chip',chip.value)
+    if (chip.color == 'blue') newChip.innerHTML = `<img src="ui/ruby.png" class="trackRuby"</img>${chip.value}`;
+    newChip.style.background = chipColors[chip.color];
+    newChip.style.margin = '5px auto';
+    const textChip = chip ? `${newChip.outerHTML}` : '';
+    const textVP = VP ? `You get ${VP} Victory Points!` : '';
+    const textRuby = ruby ? `You get a ruby!` : '';
+    showConfirmSplash({
+        title: `${textVP}${textVP&&textRuby?'<br>':''}${textRuby}`,
+        message: textChip,
+        cancelText: "",
+        confirmText: "Ok",
+    })
+}
 
 function usePotion() {
     if (drawnChips.length && potionFilled && currentWhite <= currentWhiteMax) {
@@ -269,10 +341,11 @@ function usePotion() {
         updateWhiteCount();
     }
 }
-function resetTrackSpace(index) {
-    const space = trackSpaces[currentSpace];
+function resetTrackSpace(index = currentSpace) {
+    const space = trackSpaces[index];
     space.className = 'trackSpace';
-    space.innerHTML = `<div class="trackGold">${spaceValues[currentSpace][0]}</div><div class="trackVP">${spaceValues[currentSpace][1]}</div>`;
+    const rubyElem = spaceValues[index][2] ? '<img src="ui/ruby.png" class="trackRuby"</img>' : '';
+    space.innerHTML = `${rubyElem}<div class="trackGold">${spaceValues[index][0]}</div><div class="trackVP">${spaceValues[index][1]}</div>`;
     space.style.background = '';
 }
 function updateWhiteCount() {
@@ -483,7 +556,7 @@ endBtn.addEventListener('click', () =>
         holdToConfirm: false
     })
 );
-function enterBuyPhase(gold = trackSpaces[currentSpace+1].gold) {
+function enterBuyPhase(gold = spaceValues[currentSpace+1][0]) {
     writeToLog(`Ended round`);
     prevBuyPhase.gold = gold;  prevBuyPhase.chips = [];
     showSelectorSplash({
@@ -620,17 +693,6 @@ function createBustForce(forceMagnitude = 0.15) {
     bodies.forEach(body => {
         Matter.Body.applyForce(body, body.position, { x:0, y:forceMagnitude*(0.7+Math.random()*0.6) });
     });
-}
-function removeChipFromBag(chip) {
-    if (chip == undefined) return;
-    availableChips = availableChips.filter(c => c != chip); // Remove chip from current bag
-    if (chip.body) {
-        Matter.Composite.remove(world, chip.body); // Remove physics chip from world
-        createShockwave(chip.body, 150, 0.03);
-    }
-    writeToLog(`Placed ${chip.color} ${chip.value}-chip`);
-    drawnChips.push(chip);
-    return chip;
 }
 
 //////////////////// ^^^^^^^^^^^^^
