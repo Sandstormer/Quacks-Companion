@@ -1,168 +1,111 @@
 const starterChips = [
     { color: 'white', value: 1 },
     { color: 'white', value: 1 },
-    { color: 'white', value: 1 },
-    { color: 'white', value: 1 },
-    { color: 'white', value: 2 },
-    { color: 'white', value: 2 },
-    { color: 'white', value: 3 },
+    // { color: 'white', value: 1 },
+    // { color: 'white', value: 1 },
+    // { color: 'white', value: 2 },
+    // { color: 'white', value: 2 },
+    // { color: 'white', value: 3 },
     { color: 'green', value: 1 },
     { color: 'orange', value: 1 },
 
-    // { color: 'yellow', value: 1 },
-    // { color: 'yellow', value: 2 },
-    // { color: 'yellow', value: 4 },
-    // { color: 'yellow', value: 1 },
-    // { color: 'yellow', value: 2 },
-    // { color: 'yellow', value: 4 },
-    // { color: 'yellow', value: 1 },
-    // { color: 'yellow', value: 2 },
-    // { color: 'yellow', value: 4 },
-    { color: 'blue', value: 1 },
-    { color: 'blue', value: 2 },
-    { color: 'blue', value: 4 },
-    { color: 'blue', value: 1 },
-    { color: 'blue', value: 2 },
-    { color: 'blue', value: 4 },
-    { color: 'blue', value: 1 },
-    { color: 'blue', value: 2 },
-    { color: 'blue', value: 4 },
-
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
-    // { color: 'red', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
+    { color: 'green', value: 1 },
 ];
 const spaceValues = [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0,1],[6,1],[7,1],[8,1],[9,1,1],[10,2],[11,2],[12,2],[13,2,1],[14,3],[15,3],[15,3,1],[16,3],[16,4],[17,4],[17,4,1],[18,4],[18,5],[19,5],[19,5,1],[20,5],[20,6],[21,6],[21,6,1],[22,7],[22,7,1],[23,7],[23,8],[24,8],[24,8,1],[25,9],[25,9,1],[26,9],[26,10],[27,10],[27,10,1],[28,11],[28,11,1],[29,11],[29,12],[30,12],[30,12,1],[31,12],[31,13],[32,13],[32,13,1],[33,14],[33,14,1],[35,15]];
 const chipColors = {white:'white', black:'black', orange:'peru', green:'green', red:'firebrick', blue:'royalblue', yellow:'gold', purple:'blueviolet', droplet:'gray', rat:'gray'}
-const chipCostVariants = {
-    green:{
-        A:{ 1:8, 2:13, 4:22 },
-        B:{ 1:9, 2:15, 4:24 }
+const allVariants = {
+    cost: { // Cost of each chip variant
+        green:{
+            A:{ 1:8, 2:13, 4:22 },
+            B:{ 1:9, 2:15, 4:24 },
+        },
+        red:{
+            A:{ 1:6, 2:10, 4:18 },
+        },
+        blue:{
+            A:{ 1:6, 2:11, 4:20 },
+            B:{ 1:6, 2:11, 4:20 },
+            C:{ 1:6, 2:11, 4:20 },
+            D:{ 1:6, 2:11, 4:20 },
+        },
+        yellow:{
+            A:{ 1:8, 2:10, 4:18 },
+        },
+        orange:{
+            A:{ 1:3 },
+        },
+        black:{
+            A:{ 1:10 },
+            B:{ 1:10 },
+        },
+        purple:{
+            A:{ 1:11 },
+        },
+        white:{
+            A:{ 1:0, 2:0, 3:0 },
+        }
     },
-    red:{
-        A:{ 1:6, 2:10, 4:18 }
+    desc: { // Text description of each chip variant
+        green:{
+            A:"After the round, if this is one of your last two chips placed, you get a ruby.",
+            B:"After the round, if this is one of your last two chips placed, you get an orange chip / blue-red chip / yellow-purple chip.",
+            C:"At the end of the round, if your white chips add to exactly 7, add up all your green chips, and move your last chip that many spaces.",
+            D:"After the round, if this is one of your last two chips placed, you can pay a ruby to move your droplet one space.",
+        },
+        red:{
+            A:"If you have placed an orange chip, move this chip an extra space. If you have 3 orange chips, move an extra 2 spaces instead.",
+            B:"Put this chip aside. At the end of the round, you can choose to place it, or save it for a later round.",
+            C:"If the previous placed chip was white, move this chip extra spaces according to that chip's value.",
+            D:"After you have placed one red chip, each white 1-chip is moved an additional space.",
+        },
+        blue:{
+            A:"If you draw a blue 1/2/4-chip, peek at 1/2/4 chips from your bag. You may place one of those chips.",
+            B:"If you draw a blue 1/2/4-chip, you are protected from busting for the next 1/2/4 chips. You still get gold and victory points, but can't roll the victory die.",
+            C:"If you place this chip onto a ruby space, you immediately get a ruby.",
+            D:"If you place a blue 1/2/4-chip onto a ruby space, you immediately get 1/2/4 victory points.",
+        },
+        yellow:{
+            A:"If the previous placed chip was white, put that white chip back into the bag.",
+            B:"The next chip placed is moved twice as many spaces.",
+            C:"After you have placed one yellow chip, the white threshold is increased to 8. If you have 3 yellow chips, it increases to 9.",
+            D:"If this is your 1st/2nd/3rd yellow chip placed, it is moved an extra 1/2/3 spaces.",
+        },
+        orange:{
+            A:"No additional effect.",
+        },
+        black:{
+            A:"If you placed more black chips than a player next to you, move your droplet. If you have more than both players next to you, also take a ruby.",
+            B:"If you placed as many black chips as the other player, move your droplet. If you have more, also take a ruby.",
+        },
+        purple:{
+            A:"After the round, if you drew 1/2/3 purple chips, you get 1 VP / 1 VP & ruby / 2 VP & droplet.",
+            B:"After the round, you can trade in all the purple chips you've drawn for the bonus. xxxxxxxxxx",
+            C:"When you place this chip, you get get VP for every 10 gold, rounded down. xxxxxxxxxxxxxx",
+            D:"After the round, if you drew 1/2/3 purple chips, you may upgrade another chip's value by 1/2/3.",
+        },
+        white:{
+            A:"No additional effect. If your white chips add up to more than 7, you lose the round.",
+        }
     },
-    blue:{
-        A:{ 1:6, 2:11, 4:20 }
-    },
-    yellow:{
-        A:{ 1:8, 2:10, 4:18 }
-    },
-    orange:{
-        A:{ 1:3 }
-    },
-    black:{
-        A:{ 1:10 },
-        B:{ 1:10 }
-    },
-    purple:{
-        A:{ 1:11 }
-    },
-    white:{
-        A:{ 1:0, 2:0, 3:0 }
-    }
 };
-const chipDescVariants = {
-    green:{
-        A:"After the round, if this is one of your last two chips placed, you get a ruby.",
-        B:"After the round, if this is one of your last two chips placed, you get an orange chip / blue-red chip / yellow-purple chip.",
-        C:"At the end of the round, if your white chips add to exactly 7, add up all your green chips, and move your last chip that many spaces.",
-        D:"After the round, if this is one of your last two chips placed, you can pay a ruby to move your droplet one space.",
-    },
-    red:{
-        A:"If you have placed an orange chip, move this chip an extra space. If you have 3 orange chips, move an extra 2 spaces instead.",
-        B:"Put this chip aside. At the end of the round, you can choose to place it, or save it for a later round.",
-        C:"If the previous placed chip was white, move this chip extra spaces according to that chip's value.",
-        D:"After you have placed one red chip, each white 1-chip is moved an additional space.",
-    },
-    blue:{
-        A:"If you draw a blue 1/2/4-chip, peek at 1/2/4 chips from your bag. You may place one of those chips.",
-        B:"If you draw a blue 1/2/4-chip, you are protected from busting for the next 1/2/4 chips. You still get gold and victory points, but can't roll the victory die.",
-        C:"If you place this chip onto a ruby space, you immediately get a ruby.",
-        D:"If you place a blue 1/2/4-chip onto a ruby space, you immediately get 1/2/4 victory points.",
-    },
-    yellow:{
-        A:"If the previous placed chip was white, put that white chip back into the bag.",
-        B:"The next chip placed is moved twice as many spaces.",
-        C:"After you have placed one yellow chip, the white threshold is increased to 8. If you have 3 yellow chips, it increases to 9.",
-        D:"If this is your 1st/2nd/3rd yellow chip placed, it is moved an extra 1/2/3 spaces.",
-    },
-    orange:{
-        A:"No additional effect.",
-    },
-    black:{
-        A:"If you placed more black chips than a player next to you, move your droplet. If you have more than both players next to you, also take a ruby.",
-        B:"If you placed as many black chips as the other player, move your droplet. If you have more, also take a ruby.",
-    },
-    purple:{
-        A:"After the round, if you drew 1/2/3 purple chips, you get 1 VP / 1 VP & ruby / 2 VP & droplet.",
-        B:"After the round, you can trade in all the purple chips you've drawn for the bonus. xxxxxxxxxx",
-        C:"When you place this chip, you get get VP for every 10 gold, rounded down. xxxxxxxxxxxxxx",
-        D:"After the round, if you drew 1/2/3 purple chips, you may upgrade another chip's value by 1/2/3.",
-    },
-    white:{
-        A:"No additional effect. If your white chips add up to more than 7, you lose the round.",
-    }
-}
 const chipBuyOrder = [
     [
         { color: 'green', value: 1 },
@@ -186,15 +129,6 @@ const chipBuyOrder = [
         { color: 'purple', value: 1 },
     ]
 ];
-let chipVariants = { green:'A', red:'A', blue:'C', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
-let chipCosts = {};
-let chipDesc = {};
-for (const color in chipVariants) { // List the chip costs of only the selected variants
-    const variant = chipVariants[color];
-    chipCosts[color] = chipCostVariants[color][variant];
-    chipDesc[color] = chipDescVariants[color][variant];
-}
-let prevBuyPhase = { gold: 0, chips: [] };
 
 const mainContainer = document.getElementById('mainContainer');
 mainContainer.style.maxHeight = document.documentElement.clientHeight + 'px';
@@ -218,11 +152,35 @@ let bagChips = [...starterChips]; // Chips in bag at start of game
 let availableChips = [...bagChips]; // Chips in bag at start of each round
 let drawnChips = []; // Chips placed on board
 let currentSpace = 0;
-let currentWhite = 0;
-let currentWhiteMax = 7;
-let potionFilled = true;
+let totalWhite = 0;
+let totalWhiteMax = 7;
+let isPotionFull = true;
 let dropletStats = { color:'droplet', value:0 };
 let ratStats = { color:'rat', value:0 };
+let chipVariants = { green:'A', red:'A', blue:'C', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
+let chipCosts = {};
+let chipDesc = {};
+for (const color in chipVariants) { // List the chip costs of only the selected variants
+    const variant = chipVariants[color];
+    chipCosts[color] = allVariants.cost[color][variant];
+    chipDesc[color] = allVariants.desc[color][variant];
+}
+let prevBuyPhase = { gold: 0, chips: [] };
+let game = {
+    lobby: {
+        seed: null,
+    },
+    round: {
+        count: 1,
+    },
+    player: {},
+    bag: {},
+    track: {
+        elements: [],
+        currentIndex: 0,
+        currentElem: 0,
+    },
+};
 
 function initializeBoard() {
     currentSpace = 0;
@@ -247,7 +205,7 @@ function regularPull() {
     placeChip(chip);
 }
 function grabChipFromBag(multiDraw = 0) {
-    if (availableChips.length === 0 || currentWhite > currentWhiteMax || currentSpace == trackSpaces.length-1) return;
+    if (availableChips.length === 0 || totalWhite > totalWhiteMax || currentSpace == trackSpaces.length-1) return;
     if (multiDraw) {
         const arr = [...availableChips.keys()]; // [0,1,2,...]
         arr.forEach((_, i) => { const j = Math.floor(Math.random() * (i + 1));  [arr[i], arr[j]] = [arr[j], arr[i]] });
@@ -327,7 +285,7 @@ function awardVPR(VP = 0, ruby = 0, chip = null) {
 }
 
 function usePotion() {
-    if (drawnChips.length && potionFilled && currentWhite <= currentWhiteMax) {
+    if (drawnChips.length && isPotionFull && totalWhite <= totalWhiteMax) {
         // potionFilled = false;
         // Reset the display of the track space
         resetTrackSpace(currentSpace);
@@ -349,15 +307,15 @@ function resetTrackSpace(index = currentSpace) {
     space.style.background = '';
 }
 function updateWhiteCount() {
-    currentWhite = drawnChips.filter(c => c.color === 'white').reduce((sum, c) => sum + c.value, 0);
-    whiteCounter.innerHTML = `${currentWhite}/${currentWhiteMax}`;
-    if (currentWhite > currentWhiteMax) {
-        writeToLog(`Pot exploded with ${currentWhite} white chips!`,chipColors.red)
+    totalWhite = drawnChips.filter(c => c.color === 'white').reduce((sum, c) => sum + c.value, 0);
+    whiteCounter.innerHTML = `${totalWhite}/${totalWhiteMax}`;
+    if (totalWhite > totalWhiteMax) {
+        writeToLog(`Pot exploded with ${totalWhite} white chips!`,chipColors.red)
         createBustForce();
         whiteOdds.innerHTML = 'BUST!';
         drawBtn.innerHTML = 'BUST!';
     } else {
-        const odds = Math.ceil(availableChips.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + currentWhite) > currentWhiteMax), 0)/availableChips.length*100);
+        const odds = Math.ceil(availableChips.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + totalWhite) > totalWhiteMax), 0)/availableChips.length*100);
         whiteOdds.innerHTML = `${odds}%`;
         drawBtn.innerHTML = 'Draw Chip';
     };
@@ -546,17 +504,119 @@ function flashRed(element) {
 }
 
 // Button to end round, buy chips, and restart round ===========================
-endBtn.addEventListener('click', () =>
+endBtn.addEventListener('click', () => // Initial confirmation to end round
     showConfirmSplash({
         title: "End Round?",
         message: "Are you sure you want to end the round? This can't be undone.",
         cancelText: "Cancel",
         confirmText: "Yes, End Round",
-        onConfirm: () => enterBuyPhase(),
+        onConfirm: () => enterSummaryPhase(),
         holdToConfirm: false
     })
 );
-function enterBuyPhase(gold = spaceValues[currentSpace+1][0]) {
+// Do witch card peek at end of round
+// Do greens that need exactly 7 white
+// Do delayed reds
+// Do end of round summary
+function enterSummaryPhase() {
+    const overlay = quickElement("div","confirm-overlay");
+    const box = quickElement("div","confirm-box");
+    const titleElem = quickElement("h2","confirm-title","End of Round");
+    box.appendChild(titleElem);
+    
+    const msgElem = quickElement("p","confirm-message","You get E!")
+    box.appendChild(msgElem);
+
+    let endOptions = {
+        green: drawnChips.filter((c,i) => c.color == 'green' && i > drawnChips.length-3).length,
+        purple: drawnChips.filter((c) => c.color == 'purple').length,
+        black: drawnChips.filter((c) => c.color == 'black').length
+    }
+
+    const greenRow = quickElement("div","confirm-buttons");
+    const greenElem = quickElement("div","chip",endOptions.green); greenElem.style.backgroundColor = chipColors.green;
+    greenRow.appendChild(greenElem);
+    if (endOptions.green) {
+        const greenBtn = createButton({
+            buttonText: 'Pay 1 <img src="ui/ruby.png" class="textRuby"</img> ruby to move droplet?',
+            onClick: () => {
+                endOptions.green -= 1;
+                dropletStats.value += 1;
+                showConfirmSplash({
+                    message: "Your droplet has been moved.",
+                    confirmText: "",
+                    cancelText: "Ok"
+                });
+                if (endOptions.green < 1) {
+                    greenRow.removeChild(greenBtn);
+                    greenRow.appendChild(createButton({ buttonText:"Already done", buttonColor:"grey" }));
+                } else {
+                    greenBtn.firstChild.textContent = "Pay another ruby to move droplet again?";
+                }
+            },
+            holdToClick: true
+        });
+        greenRow.appendChild(greenBtn);
+    } else { // Show a dead button
+        greenRow.appendChild(createButton({ buttonText:"No green chips", buttonColor:"grey" }));
+    }
+    box.appendChild(greenRow);
+    
+    const purpleRow = quickElement("div","confirm-buttons");
+    const purpleElem = quickElement("div","chip",endOptions.purple); purpleElem.style.backgroundColor = chipColors.purple;
+    purpleRow.appendChild(purpleElem);
+    if (endOptions.green) {
+        const purpleBtn = createButton({
+            buttonText: "Receive Bonus!",
+            onClick: () => {
+                dropletStats.value += 1;
+                showConfirmSplash({
+                    message: "You get a droplet upgrade!",
+                    confirmText: "",
+                    cancelText: "Ok"
+                });
+            },
+        });
+        purpleRow.appendChild(purpleBtn);
+    } else { // Show a dead button
+        purpleRow.appendChild(createButton({ buttonText:"No purple chips", buttonColor:"grey" }));
+    }
+    box.appendChild(purpleRow);
+    
+    const blackRow = quickElement("div","confirm-buttons");
+    const blackElem = quickElement("div","chip",endOptions.black); blackElem.style.backgroundColor = chipColors.black;
+    const blackBtn = createButton({
+        buttonText: "More than one player next to you?",
+        onClick: () => {
+            dropletStats.value += 1;
+            showConfirmSplash({
+                message: "Your droplet has been moved.<br><br>If you have more black chips than both players next to you, take a ruby as well.",
+                confirmText: "",
+                cancelText: "Ok"
+            });
+        },
+        holdToClick: true
+    });
+    blackRow.appendChild(blackElem);
+    blackRow.appendChild(blackBtn);
+    box.appendChild(blackRow);
+
+    const shopRow = quickElement("div","confirm-buttons");
+    const shopBtn = createButton({
+        buttonText: "Go to buy chips",
+        onClick: () => {
+            document.body.removeChild(overlay);
+            enterBuyPhase();
+        },
+        holdToClick: true
+    });
+    shopRow.appendChild(shopBtn);
+    box.appendChild(shopRow);
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+}
+function enterBuyPhase(gold = spaceValues[currentSpace+1][0]) { // Enter the buy phase to buy 2 new chips
     writeToLog(`Ended round`);
     prevBuyPhase.gold = gold;  prevBuyPhase.chips = [];
     showSelectorSplash({

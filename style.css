@@ -68,6 +68,11 @@ body {
     height: 14px;
     top: -8px;
 }
+.textRuby {
+    width: 24px;
+    height: 24px;
+    margin-bottom: -6px;
+}
 .trackGold, .trackVP {
     font-size: 14px;
     font-family: monospace;
