@@ -34,33 +34,44 @@ const chipColors = {white:'white', black:'black', orange:'peru', green:'green', 
 const allVariants = {
     cost: { // Cost of each chip variant
         green:{
-            A:{ 1:8, 2:13, 4:22 },
-            B:{ 1:9, 2:15, 4:24 },
+            A:{ 1:4, 2:8, 4:14 },  // ruby
+            B:{ 1:6, 2:11, 4:18 }, // free chip
+            C:{ 1:6, 2:11, 4:21 }, // seven white
+            D:{ 1:4, 2:8, 4:14 },  // ruby swap
         },
         red:{
-            A:{ 1:6, 2:10, 4:18 },
+            A:{ 1:6, 2:10, 4:16 }, // pumpkin boost
+            B:{ 1:4, 2:8, 4:14 },  // end of round
+            C:{ 1:5, 2:9, 4:15 },  // white boost red
+            D:{ 1:7, 2:11, 4:17 }, // red boost white
         },
         blue:{
-            A:{ 1:6, 2:11, 4:20 },
-            B:{ 1:6, 2:11, 4:20 },
-            C:{ 1:6, 2:11, 4:20 },
-            D:{ 1:6, 2:11, 4:20 },
+            A:{ 1:5, 2:10, 4:19 }, // peek
+            B:{ 1:5, 2:10, 4:19 }, // insurance
+            C:{ 1:4, 2:8, 4:14 },  // ruby
+            D:{ 1:5, 2:10, 4:19 }, // victory points
         },
         yellow:{
-            A:{ 1:8, 2:10, 4:18 },
+            A:{ 1:8, 2:12, 4:18 }, // white return
+            B:{ 1:9, 2:13, 4:19 }, // doubler
+            C:{ 1:8, 2:12, 4:18 }, // white threshold
+            D:{ 1:8, 2:12, 4:18 }, // one-two-three
         },
         orange:{
-            A:{ 1:3 },
+            A:{ 1:3 }, // pumpkin
         },
         black:{
-            A:{ 1:10 },
-            B:{ 1:10 },
+            A:{ 1:10 }, // 3+ players
+            B:{ 1:10 }, // 2  players
         },
         purple:{
-            A:{ 1:11 },
+            A:{ 1:9 },  // keep bonus
+            B:{ 1:12 }, // swap bonus
+            C:{ 1:10 }, // victory points
+            D:{ 1:11 }, // upgrader
         },
         white:{
-            A:{ 1:0, 2:0, 3:0 },
+            A:{ 1:0, 2:0, 3:0 }, // exploding chips
         }
     },
     desc: { // Text description of each chip variant
@@ -133,18 +144,14 @@ const chipBuyOrder = [
 const mainContainer = document.getElementById('mainContainer');
 mainContainer.style.maxHeight = document.documentElement.clientHeight + 'px';
 const bagChipsContainer = document.getElementById('bagChipsContainer');
-const drawnChipsContainer = document.getElementById('drawnChipsContainer');
 const logBtn = document.getElementById('logBtn');
 const witchBtn = document.getElementById('witchBtn');
 const endBtn = document.getElementById('endBtn');
 const drawBtn = document.getElementById('drawBtn');
 const potionBtn = document.getElementById('potionBtn');
-const splashBtn = document.getElementById('splashBtn');
 const trackChipsContainer = document.getElementById('trackChipsContainer');
 const whiteCounter = document.getElementById('whiteCounter');
 const whiteOdds = document.getElementById('whiteOdds');
-const splashScreen = document.getElementById('splashScreen');
-const splashScrollable = document.getElementById('splashScrollable');
 
 let trackSpaces = []; // Spaces on the board
 let actionLog = []; // Text log of actions
@@ -157,7 +164,7 @@ let totalWhiteMax = 7;
 let isPotionFull = true;
 let dropletStats = { color:'droplet', value:0 };
 let ratStats = { color:'rat', value:0 };
-let chipVariants = { green:'A', red:'A', blue:'C', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
+let chipVariants = { green:'C', red:'A', blue:'C', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
 let chipCosts = {};
 let chipDesc = {};
 for (const color in chipVariants) { // List the chip costs of only the selected variants
@@ -169,16 +176,28 @@ let prevBuyPhase = { gold: 0, chips: [] };
 let game = {
     lobby: {
         seed: null,
+        variant: {},
     },
     round: {
         count: 1,
+        prevBuy: { gold: 0, chips: [] },
     },
-    player: {},
-    bag: {},
+    player: {
+        droplet: { color:'droplet', value:0 },
+        rat: { color:'rat', value:0 },
+        potion: true,
+    },
+    chips: {
+        owned: [...starterChips],
+        inBag: [...starterChips],
+        cost: {},
+        desc: {},
+    },
     track: {
         elements: [],
-        currentIndex: 0,
-        currentElem: 0,
+        currIndex: 0,
+        currElem: null,
+        nextElem: null,
     },
 };
 
@@ -503,6 +522,133 @@ function flashRed(element) {
     element.classList.add("flash-red");
 }
 
+//////////////////// vvvvvvvvvvvvv
+// === Setup Matter.js ===
+
+const canvas = document.getElementById("chipsCanvas");
+
+// Make sure parent has been laid out
+function resizeCanvasToParent() {
+    const parent = canvas.parentElement;
+    const width  = parent.clientWidth;
+    const height = parent.clientHeight;
+    // device pixel ratio (2 for most phones, 1 for normal monitors)
+    const ratio = 2 || window.devicePixelRatio || 1;
+    // CSS size (visual)
+    canvas.style.width  = width + "px";
+    canvas.style.height = height + "px";
+    // Internal resolution (render size)
+    canvas.width  = width  * ratio;
+    canvas.height = height * ratio;
+    console.log({
+      css: [width, height],
+      internal: [canvas.width, canvas.height]
+    });
+}
+resizeCanvasToParent(); // Initial resize (after DOM is ready)
+window.addEventListener("resize", resizeCanvasToParent); // Update on window resize
+
+// --- Matter.js setup ---
+const engine = Matter.Engine.create();
+const world = engine.world;
+const render = Matter.Render.create({
+    canvas: canvas,
+    engine: engine,
+    options: {
+        wireframes: false,
+        background: "#252129",
+        width: canvas.width,
+        height: canvas.height,
+        // antiAlias: true
+    }
+});
+
+const runner = Matter.Runner.create();
+Matter.Render.run(render);
+Matter.Runner.run(runner, engine);
+
+// --- Sequential chip spawning ---
+function addPhysicsChips(chips) {
+    let delay = 220;
+    let cumulative = 0;
+    const accel = 0.92;
+    chips.forEach(chip => {
+        setTimeout(() => { // Only spawn in not already drawn from bag
+            if (availableChips.includes(chip)) chip.body = spawnChip(chip.color, chip.value); 
+        }, cumulative );
+        delay *= accel;
+        cumulative += delay;
+    });
+}
+// --- Chip spawning ---
+function spawnChip(color, value) {
+    const radius = 64;
+    const chipBody = Matter.Bodies.circle(
+        Math.random() * (canvas.width - radius*2) + radius,
+        -100 - Math.random() * 300,
+        radius,
+        {
+            restitution: 0.95,
+            friction: 0.1,
+            frictionAir: 0.01,
+            render: {
+                sprite: {
+                    texture: "chips/chip-test.png",
+                    xScale: 1/2,
+                    yScale: 1/2
+                }
+            }
+        }
+    );
+    Matter.Composite.add(world, chipBody);
+    return chipBody;
+}
+function createShockwave(originBody, radius = 400, forceMagnitude = 0.04) {
+    const bodies = Matter.Composite.allBodies(world);
+    bodies.forEach(body => {
+        if (body === originBody) return;
+        const dx = body.position.x - originBody.position.x;
+        const dy = body.position.y - originBody.position.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < radius) {
+            const normalX = dx / dist;
+            const normalY = dy / dist;
+            const force = { x: normalX * forceMagnitude, y: normalY * forceMagnitude };
+            Matter.Body.applyForce(body, body.position, force);
+        }
+    });
+}
+function createBustForce(forceMagnitude = 0.3) {
+    const bodies = Matter.Composite.allBodies(world);
+    bodies.forEach(body => {
+        Matter.Body.applyForce(body, body.position, { x:0, y:forceMagnitude*(0.7+Math.random()*0.6) });
+    });
+}
+
+//////////////////// ^^^^^^^^^^^^^
+
+drawBtn.addEventListener('click', () => regularPull());
+potionBtn.addEventListener('click', usePotion);
+logBtn.addEventListener('click', () => 
+    showConfirmSplash({ // Show the log
+        title: "Action Log:",
+        message: actionLog.map(a => `<div class="log-row"><div>${a[0]}</div><div style="color:${a[2]};">${a[1]}</div></div>`).join(''),
+        cancelText: "Return to game",
+        confirmText: "",
+        holdToConfirm: false
+    })
+);
+document.addEventListener('keydown', (event) => {
+    if (event.key == " ") {
+        regularPull();
+        event.preventDefault();
+    }
+    if (event.key == "Enter") {
+        event.preventDefault();
+    }
+});
+
+
 // Button to end round, buy chips, and restart round ===========================
 endBtn.addEventListener('click', () => // Initial confirmation to end round
     showConfirmSplash({
@@ -528,7 +674,7 @@ function enterSummaryPhase() {
     box.appendChild(msgElem);
 
     let endOptions = {
-        green: drawnChips.filter((c,i) => c.color == 'green' && i > drawnChips.length-3).length,
+        green: drawnChips.filter((c,i) => c.color == 'green' && i > drawnChips.length-3 && chipVariants.green != 'C').length,
         purple: drawnChips.filter((c) => c.color == 'purple').length,
         black: drawnChips.filter((c) => c.color == 'black').length
     }
@@ -551,21 +697,27 @@ function enterSummaryPhase() {
                     greenRow.removeChild(greenBtn);
                     greenRow.appendChild(createButton({ buttonText:"Already done", buttonColor:"grey" }));
                 } else {
-                    greenBtn.firstChild.textContent = "Pay another ruby to move droplet again?";
+                    greenBtn.firstChild.textContent = "Pay another ruby to move droplet again?"; // xxxxxxxxxxx
                 }
             },
             holdToClick: true
         });
         greenRow.appendChild(greenBtn);
     } else { // Show a dead button
-        greenRow.appendChild(createButton({ buttonText:"No green chips", buttonColor:"grey" }));
+        if (chipVariants.green == 'C') {
+            greenElem.textContent = drawnChips.filter((c,i) => c.color == 'green').length;
+            greenRow.appendChild(createButton({ buttonColor:"grey",
+                buttonText: (totalWhite==7) ? "Green chips doubled!" : "Need exactly 7 white" }));
+        } else {
+            greenRow.appendChild(createButton({ buttonText:"No green chips", buttonColor:"grey" }));
+        }
     }
     box.appendChild(greenRow);
     
     const purpleRow = quickElement("div","confirm-buttons");
     const purpleElem = quickElement("div","chip",endOptions.purple); purpleElem.style.backgroundColor = chipColors.purple;
     purpleRow.appendChild(purpleElem);
-    if (endOptions.green) {
+    if (endOptions.purple) {
         const purpleBtn = createButton({
             buttonText: "Receive Bonus!",
             onClick: () => {
@@ -585,20 +737,25 @@ function enterSummaryPhase() {
     
     const blackRow = quickElement("div","confirm-buttons");
     const blackElem = quickElement("div","chip",endOptions.black); blackElem.style.backgroundColor = chipColors.black;
-    const blackBtn = createButton({
-        buttonText: "More than one player next to you?",
-        onClick: () => {
-            dropletStats.value += 1;
-            showConfirmSplash({
-                message: "Your droplet has been moved.<br><br>If you have more black chips than both players next to you, take a ruby as well.",
-                confirmText: "",
-                cancelText: "Ok"
-            });
-        },
-        holdToClick: true
-    });
     blackRow.appendChild(blackElem);
-    blackRow.appendChild(blackBtn);
+    if (endOptions.black) {
+        const blackBtn = createButton({
+            buttonText: "More than one player next to you?",
+            onClick: () => {
+                dropletStats.value += 1;
+                showConfirmSplash({
+                    message: "Your droplet has been moved.<br><br>If you have more black chips than both players next to you, take a ruby as well.",
+                    confirmText: "",
+                    cancelText: "Ok"
+                });
+            },
+            holdToClick: true
+        });
+        blackRow.appendChild(blackBtn);
+
+    } else {
+        blackRow.appendChild(createButton({ buttonText:"No black chips", buttonColor:"grey" }));
+    }
     box.appendChild(blackRow);
 
     const shopRow = quickElement("div","confirm-buttons");
@@ -653,141 +810,8 @@ function restartRound() {
     initializeBoard();
     addPhysicsChips(availableChips);
 }
-//////////////////// vvvvvvvvvvvvv
-// === Setup Matter.js ===
 
-const canvas = document.getElementById("chipsCanvas");
-
-// Make sure parent has been laid out
-function resizeCanvasToParent() {
-    const parent = canvas.parentElement;
-    const width  = parent.clientWidth;
-    const height = parent.clientHeight;
-
-    // CSS size
-    canvas.style.width = width + "px";
-    canvas.style.height = height + "px";
-
-    // Internal drawing buffer
-    canvas.width = width;
-    canvas.height = height;
-
-    // Update Matter.Render size if renderer exists
-    if (typeof render !== "undefined") {
-        render.options.width = width;
-        render.options.height = height;
-    }
-}
-
-// --- Matter.js setup ---
-const engine = Matter.Engine.create();
-const world = engine.world;
-const render = Matter.Render.create({
-    canvas: canvas,
-    engine: engine,
-    options: {
-        wireframes: false,
-        background: "#252129",
-        width: canvas.width,
-        height: canvas.height
-    }
-});
-
-resizeCanvasToParent(); // Initial resize (after DOM is ready)
-window.addEventListener("resize", resizeCanvasToParent); // Update on window resize
-
-const runner = Matter.Runner.create();
-Matter.Render.run(render);
-Matter.Runner.run(runner, engine);
-
-// --- Sequential chip spawning ---
-function addPhysicsChips(chips) {
-    let delay = 220;
-    let cumulative = 0;
-    const accel = 0.92;
-    chips.forEach(chip => {
-        setTimeout(() => { // Only spawn in not already drawn from bag
-            if (availableChips.includes(chip)) chip.body = spawnChip(chip.color, chip.value); 
-        }, cumulative );
-        delay *= accel;
-        cumulative += delay;
-    });
-}
-// --- Chip spawning ---
-function spawnChip(color, value) {
-    const radius = 32;
-    const chipBody = Matter.Bodies.circle(
-        Math.random() * (canvas.width - radius*2) + radius,
-        -100 - Math.random() * 300,
-        radius,
-        {
-            restitution: 0.95,
-            friction: 0.1,
-            frictionAir: 0.01,
-            render: {
-                fillStyle: chipColors[color],
-                text: { content: value, color: "black", size: 20 }
-            }
-        }
-    );
-    Matter.Composite.add(world, chipBody);
-    return chipBody;
-}
-function createShockwave(originBody, radius = 200, forceMagnitude = 0.02) {
-    const bodies = Matter.Composite.allBodies(world);
-    bodies.forEach(body => {
-        if (body === originBody) return;
-        const dx = body.position.x - originBody.position.x;
-        const dy = body.position.y - originBody.position.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < radius) {
-            const normalX = dx / dist;
-            const normalY = dy / dist;
-            const force = { x: normalX * forceMagnitude, y: normalY * forceMagnitude };
-            Matter.Body.applyForce(body, body.position, force);
-        }
-    });
-}
-function createBustForce(forceMagnitude = 0.15) {
-    const bodies = Matter.Composite.allBodies(world);
-    bodies.forEach(body => {
-        Matter.Body.applyForce(body, body.position, { x:0, y:forceMagnitude*(0.7+Math.random()*0.6) });
-    });
-}
-
-//////////////////// ^^^^^^^^^^^^^
-function renderDrawnChips(chips) {
-    drawnChipsContainer.innerHTML = '';
-    chips.forEach(chip => {
-        const newChip = document.createElement('div');
-        newChip.className = 'chip';
-        newChip.style.background = chipColors[chip.color];
-        newChip.textContent = chip.value;
-        drawnChipsContainer.appendChild(newChip);
-    });
-}
-
-drawBtn.addEventListener('click', () => regularPull());
-potionBtn.addEventListener('click', usePotion);
-logBtn.addEventListener('click', () => 
-    showConfirmSplash({ // Show the log
-        title: "Action Log:",
-        message: actionLog.map(a => `<div class="log-row"><div>${a[0]}</div><div style="color:${a[2]};">${a[1]}</div></div>`).join(''),
-        cancelText: "Return to game",
-        confirmText: "",
-        holdToConfirm: false
-    })
-);
-splashBtn.addEventListener('click', () => splashScreen.classList.remove("show"));
-document.addEventListener('keydown', (event) => {
-    if (event.key == " ") {
-        regularPull();
-        event.preventDefault();
-    }
-    if (event.key == "Enter") {
-        event.preventDefault();
-    }
-});
+// Button to open witch menu and activate witch effects ===========================
 witchBtn.addEventListener('click', showWitchMenu);
 function showWitchMenu() {
     const overlay = quickElement("div","confirm-overlay");
@@ -843,6 +867,8 @@ function showWitchMenu() {
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 }
+
+// Button to expand board and open rat menu ===========================
 trackChipsContainer.addEventListener('click', clickOnTrack);
 function clickOnTrack() {
     if (drawnChips.length) { // If drawn chips, expand the board
