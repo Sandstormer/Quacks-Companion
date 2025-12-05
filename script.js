@@ -246,9 +246,9 @@ function initializeBoard(track = game.track) {
     });
     track.currIndex = 0; // Index of the furthest space a chip is placed
     track.currElem = track.elements[0]; // Element of current space
-    placeChip(dropletStats);
+    placeChip(dropletStats, track);
     if (ratStats.value) {
-        placeChip(ratStats);
+        placeChip(ratStats, track);
     }
 }
 
@@ -300,6 +300,7 @@ function placeChip(chip, track = game.track) {
     track.currElem = track.elements[track.currIndex];
     if (chip.color == 'blue' && chipVariants.blue == 'C' && track.currElem.ruby && isReal) awardVPR(0,1,chip);
     if (chip.color == 'blue' && chipVariants.blue == 'D' && track.currElem.ruby && isReal) awardVPR(chip.value,0,chip);
+    if (chip.color == 'purple' && chipVariants.purple == 'C' && track.currElem.gold >= 10 && isReal) awardVPR(Math.floor(track.currElem.gold/10),0,chip);
     track.currElem.scrollIntoView({behavior: "smooth", inline: "center"});
     track.currElem.className = 'chip';
     track.currElem.style.background = chipColors[chip.color];
@@ -317,12 +318,12 @@ function bluePeeking(value) { // Peek at multiple chips, and you may place one
         chipsToSelect: [grabChipFromBag(value)],
         maxSelect: 1,
         showGold: false,
-        // showTrack: true,
+        showTrack: true,
         onConfirm: (selectedChips) => placeChip(removeChipFromBag(selectedChips[0])) // Place selected chip
     });
 }
 function yellowReturnWhite() {
-    resetTrackSpace(game.track.elements[game.track.currIndex]);
+    resetTrackSpace(game.track.currElem);
     const [chip] = drawnChips.splice(drawnChips.length-2,1);
     writeToLog(`Yellow effect returned ${chip.color} ${chip.value}-chip`, chipColors.yellow);
     chip.body = spawnChip(chip.color, chip.value)
@@ -360,10 +361,7 @@ function usePotion() {
     if (drawnChips.length && isPotionFull && totalWhite <= totalWhiteMax) {
         // potionFilled = false;
         // Reset the display of the track space
-        resetTrackSpace(game.track.currElem);
-        game.track.currIndex = game.track.elements.map(e => e.className).lastIndexOf("chip");
-        game.track.currElem = game.track.elements[game.track.currIndex];
-        game.track.currElem.scrollIntoView({behavior: "smooth", inline: "center"});
+        removeLastChip(game.track);
         // Put chip back into bag
         const chip = drawnChips.pop();
         chip.body = spawnChip(chip.color, chip.value)
@@ -371,6 +369,12 @@ function usePotion() {
         writeToLog(`Used potion on ${chip.color} ${chip.value}-chip`);
         updateWhiteCount();
     }
+}
+function removeLastChip(track = game.track) {
+    resetTrackSpace(track.currElem);
+    track.currIndex = track.elements.map(e => e.className).lastIndexOf("chip");
+    track.currElem = track.elements[track.currIndex];
+    track.currElem.scrollIntoView({behavior: "smooth", inline: "center"});
 }
 function resetTrackSpace(space = game.track.currElem) {
     space.className = 'trackSpace';
@@ -467,14 +471,14 @@ function showSelectorSplash({
         if (numSelected != 0 && !showGold) confirmBtn.firstChild.textContent = `Place ${numToText(numSelected)}`;
     };
 
+    const track = quickElement('div','track');
+    track.style.margin = "0px -20px 18px";
+    initializeBoard(track);
+    drawnChips.forEach(c => placeChip(c, track));
+
+    if (showTrack) box.appendChild(track);
     if (title) box.appendChild(titleElem);
     if (message) box.appendChild(msgElem);
-
-    const track = quickElement('div','track');
-    if (showTrack) {
-        initializeBoard(track);
-        box.appendChild(track);
-    }
     
     const chipList = quickElement("div","chip-selector");
     chipsToSelect.forEach(thisBuyRow => {
@@ -493,7 +497,9 @@ function showSelectorSplash({
             chipRow.appendChild(itemDiv);
             itemDiv.addEventListener("click", () => {
                 if (selectedChips.includes(chip)) { // Unselect
+                    selectedChips.forEach(c => removeLastChip(track));
                     selectedChips = selectedChips.filter(x => x !== chip);
+                    selectedChips.forEach(c => placeChip(chip, track));
                     itemDiv.classList.remove("selected");
                 } else { // Select if possible
                     if (maxSelect == 1) { // Swap single selection
@@ -501,8 +507,10 @@ function showSelectorSplash({
                             flashRed(itemDiv);
                         } else {
                             chipList.querySelectorAll('.chip-selector-item').forEach(e => e.classList.remove('selected'));
+                            if (selectedChips.length) removeLastChip(track);
                             selectedChips = [chip];
                             itemDiv.classList.add("selected");
+                            placeChip(chip, track);
                         }
                     } else if ( (selectedChips.length >= maxSelect) // Limit amount
                         || (cost + selectedChips.reduce((sum, c) => sum + chipCosts[c.color][c.value], 0) > gold) // Need enough gold
@@ -511,6 +519,7 @@ function showSelectorSplash({
                     } else { // Add chip to selected
                         selectedChips.push(chip);
                         itemDiv.classList.add("selected");
+                        placeChip(chip, track);
                     }
                 }
                 confirmBtn.updateText(selectedChips.length);
@@ -524,6 +533,7 @@ function showSelectorSplash({
     box.appendChild(btnRow);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
+    track.currElem.scrollIntoView({inline: "center"});
 }
 function numToText(num) {
     const text = ['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
