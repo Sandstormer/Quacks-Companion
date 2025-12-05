@@ -190,16 +190,14 @@ const witchBtn = document.getElementById('witchBtn');
 const endBtn = document.getElementById('endBtn');
 const drawBtn = document.getElementById('drawBtn');
 const potionBtn = document.getElementById('potionBtn');
-const trackChipsContainer = document.getElementById('trackChipsContainer');
 const whiteCounter = document.getElementById('whiteCounter');
 const whiteOdds = document.getElementById('whiteOdds');
 
-let trackSpaces = []; // Spaces on the board
+let trackSpaces = []; 
 let actionLog = []; // Text log of actions
 let bagChips = [...starterChips]; // Chips in bag at start of game
 let availableChips = [...bagChips]; // Chips in bag at start of each round
 let drawnChips = []; // Chips placed on board
-let currentSpace = 0;
 let totalWhite = 0;
 let totalWhiteMax = 7;
 let isPotionFull = true;
@@ -234,24 +232,20 @@ let game = { // All variables for the game state
         cost: {},
         desc: {},
     },
-    track: {
-        elements: [],
-        currIndex: 0,
-        currElem: null,
-        nextElem: null,
-    },
+    track: document.getElementById('trackActual'),
+        // track.elements, track.currIndex, track.currElem
 };
 
-function initializeBoard() {
-    currentSpace = 0;
-    trackSpaces = [];
-    trackChipsContainer.innerHTML = '';
-    spaceValues.forEach((_,i) => {
+function initializeBoard(track = game.track) {
+    track.innerHTML = '';
+    track.elements = spaceValues.map((val,i) => { // Elements for board spaces
         const newSpace = document.createElement('div');
-        newSpace.gold = spaceValues[i][0];  newSpace.VP = spaceValues[i][1];  newSpace.ruby = spaceValues[i][2];
-        resetTrackSpace(newSpace);  trackSpaces.push(newSpace);
-        trackChipsContainer.appendChild(newSpace);
+        newSpace.gold = val[0];  newSpace.VP = val[1];  newSpace.ruby = val[2];
+        resetTrackSpace(newSpace);  track.appendChild(newSpace);
+        return newSpace;
     });
+    track.currIndex = 0; // Index of the furthest space a chip is placed
+    track.currElem = track.elements[0]; // Element of current space
     placeChip(dropletStats);
     if (ratStats.value) {
         placeChip(ratStats);
@@ -265,7 +259,7 @@ function regularPull() {
     placeChip(chip);
 }
 function grabChipFromBag(multiDraw = 0) {
-    if (availableChips.length === 0 || totalWhite > totalWhiteMax || currentSpace == trackSpaces.length-1) return;
+    if (availableChips.length === 0 || totalWhite > totalWhiteMax || game.track.currIndex == game.track.elements.length-1) return;
     if (multiDraw) {
         const arr = [...availableChips.keys()]; // [0,1,2,...]
         arr.forEach((_, i) => { const j = Math.floor(Math.random() * (i + 1));  [arr[i], arr[j]] = [arr[j], arr[i]] });
@@ -291,27 +285,28 @@ function removeChipFromBag(chip) {
     drawnChips.push(chip);
     return chip;
 }
-function placeChip(chip) {
+function placeChip(chip, track = game.track) {
     if (chip == undefined) return;
+    const isReal = (track == game.track);
     // Calculate chip effects
     let spaces = chip.value;
     if (chip.color == 'red' && chipVariants.red == 'A' && drawnChips.filter(c => c.color=='orange').length > 0) spaces += 1;
     if (chip.color == 'red' && chipVariants.red == 'A' && drawnChips.filter(c => c.color=='orange').length > 2) spaces += 1;
     if (chip.color == 'red' && chipVariants.red == 'C' && drawnChips[drawnChips.length-2]?.color == 'white') spaces += drawnChips[drawnChips.length-2]?.value;
     if (chip.color == 'white' && chipVariants.red == 'D' && chip.value == 1 && drawnChips.filter(c => c.color == 'red').length) spaces += 1;
-    if (chip.color == 'yellow' && chipVariants.yellow == 'A' && drawnChips[drawnChips.length-2]?.color == 'white') yellowReturnWhite();
+    if (chip.color == 'yellow' && chipVariants.yellow == 'A' && drawnChips[drawnChips.length-2]?.color == 'white' && isReal) yellowReturnWhite();
     // Render the chip onto the track space
-    currentSpace = Math.min(trackSpaces.length-2, currentSpace+spaces);
-    if (chip.color == 'blue' && chipVariants.blue == 'C' && spaceValues[currentSpace][2]) awardVPR(0,1,chip);
-    if (chip.color == 'blue' && chipVariants.blue == 'D' && spaceValues[currentSpace][2]) awardVPR(chip.value,0,chip);
-    const thisTrackSpace = trackSpaces[currentSpace];
-    thisTrackSpace.scrollIntoView({behavior: "smooth", inline: "center"});
-    thisTrackSpace.className = 'chip';
-    thisTrackSpace.style.background = chipColors[chip.color];
-    const rubyElem = spaceValues[currentSpace][2] ? '<img src="ui/ruby.png" class="trackRuby"</img>' : '';
-    thisTrackSpace.innerHTML = `${rubyElem}${chip.value}`;
-    updateWhiteCount();
-    if (chip.color == 'blue' && chipVariants.blue == 'A') bluePeeking(chip.value);
+    track.currIndex = Math.min(track.elements.length-2, track.currIndex+spaces);
+    track.currElem = track.elements[track.currIndex];
+    if (chip.color == 'blue' && chipVariants.blue == 'C' && track.currElem.ruby && isReal) awardVPR(0,1,chip);
+    if (chip.color == 'blue' && chipVariants.blue == 'D' && track.currElem.ruby && isReal) awardVPR(chip.value,0,chip);
+    track.currElem.scrollIntoView({behavior: "smooth", inline: "center"});
+    track.currElem.className = 'chip';
+    track.currElem.style.background = chipColors[chip.color];
+    const rubyElem = track.currElem.ruby ? '<img src="ui/ruby.png" class="trackRuby"</img>' : '';
+    track.currElem.innerHTML = `${rubyElem}${chip.value}`;
+    if (isReal) updateWhiteCount();
+    if (chip.color == 'blue' && chipVariants.blue == 'A' && isReal) bluePeeking(chip.value);
 }
 function bluePeeking(value) { // Peek at multiple chips, and you may place one
     writeToLog(`Blue effect peeked at ${value} chips`, chipColors.blue);
@@ -322,11 +317,12 @@ function bluePeeking(value) { // Peek at multiple chips, and you may place one
         chipsToSelect: [grabChipFromBag(value)],
         maxSelect: 1,
         showGold: false,
+        // showTrack: true,
         onConfirm: (selectedChips) => placeChip(removeChipFromBag(selectedChips[0])) // Place selected chip
     });
 }
 function yellowReturnWhite() {
-    resetTrackSpace(trackSpaces[currentSpace]);
+    resetTrackSpace(game.track.elements[game.track.currIndex]);
     const [chip] = drawnChips.splice(drawnChips.length-2,1);
     writeToLog(`Yellow effect returned ${chip.color} ${chip.value}-chip`, chipColors.yellow);
     chip.body = spawnChip(chip.color, chip.value)
@@ -364,9 +360,10 @@ function usePotion() {
     if (drawnChips.length && isPotionFull && totalWhite <= totalWhiteMax) {
         // potionFilled = false;
         // Reset the display of the track space
-        resetTrackSpace(trackSpaces[currentSpace]);
-        currentSpace = trackSpaces.map(e => e.className).lastIndexOf("chip");
-        trackSpaces[currentSpace].scrollIntoView({behavior: "smooth", inline: "center"});
+        resetTrackSpace(game.track.currElem);
+        game.track.currIndex = game.track.elements.map(e => e.className).lastIndexOf("chip");
+        game.track.currElem = game.track.elements[game.track.currIndex];
+        game.track.currElem.scrollIntoView({behavior: "smooth", inline: "center"});
         // Put chip back into bag
         const chip = drawnChips.pop();
         chip.body = spawnChip(chip.color, chip.value)
@@ -375,7 +372,7 @@ function usePotion() {
         updateWhiteCount();
     }
 }
-function resetTrackSpace(space = trackSpaces[currentSpace]) {
+function resetTrackSpace(space = game.track.currElem) {
     space.className = 'trackSpace';
     const rubyElem = space.ruby ? '<img src="ui/ruby.png" class="trackRuby"</img>' : '';
     space.innerHTML = `${rubyElem}<div class="trackGold">${space.gold}</div><div class="trackVP">${space.VP}</div>`;
@@ -448,6 +445,7 @@ function showSelectorSplash({
     maxSelect = 2,
     gold = 999,
     showGold = true,
+    showTrack = false,
 }) {
     let selectedChips = [];
     const overlay = quickElement("div","confirm-overlay");
@@ -471,7 +469,12 @@ function showSelectorSplash({
 
     if (title) box.appendChild(titleElem);
     if (message) box.appendChild(msgElem);
-    btnRow.appendChild(confirmBtn);
+
+    const track = quickElement('div','track');
+    if (showTrack) {
+        initializeBoard(track);
+        box.appendChild(track);
+    }
     
     const chipList = quickElement("div","chip-selector");
     chipsToSelect.forEach(thisBuyRow => {
@@ -517,6 +520,7 @@ function showSelectorSplash({
     });
     box.appendChild(chipList);
 
+    btnRow.appendChild(confirmBtn);
     box.appendChild(btnRow);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
@@ -805,6 +809,7 @@ function placeSavedReds() {
         chipsToSelect: [game.chips.redSaved],
         maxSelect: 99,
         showGold: false,
+        showTrack: true,
         onConfirm: (selectedChips) => {
             selectedChips.forEach(c => placeChip(c)) // Place selected chips
             enterSummaryPhase()
@@ -922,12 +927,12 @@ function enterSummaryPhase() {
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 }
-function enterBuyPhase(gold = spaceValues[currentSpace+1][0]) { // Enter the buy phase to buy 2 new chips
+function enterBuyPhase(gold = spaceValues[game.track.currIndex+1][0]) { // Enter the buy phase to buy 2 new chips
     writeToLog(`Ended round`);
     game.round.prevBuy.gold = gold;  game.round.prevBuy.chips = [];
     showSelectorSplash({
         title: "End of Round",
-        message: `Spend up to <span class="msgGold">${gold}</span> gold on 2 chips`,
+        message: `Spend up to <span class="textGold">${gold}</span> gold on 2 chips`,
         cancelText: "",
         confirmText: "Purchase",
         holdToConfirm: true,
@@ -1019,7 +1024,7 @@ function showWitchMenu() {
 }
 
 // Button to expand board and open rat menu ===========================
-trackChipsContainer.addEventListener('click', clickOnTrack);
+game.track.addEventListener('click', clickOnTrack);
 function clickOnTrack() {
     if (drawnChips.length) { // If drawn chips, expand the board
         expandBoard();
