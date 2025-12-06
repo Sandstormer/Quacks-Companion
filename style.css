@@ -129,6 +129,7 @@ button {
     display: block;
     height: 100%;
     width: 100%;
+    background-color: transparent;
 }
 .controlsUpper {
     margin: 8px;
@@ -137,8 +138,9 @@ button {
     grid-template-columns: repeat(5, 1fr);
 }
 .controlsUpper button {
+    /* Could be 38px to 76px, usually 59px */
     aspect-ratio: 1;
-    min-width: 52px;
+    min-width: 52px; /* Includes padding and border, works out to 38px */
     font-size: min(4vw, 16px);
 }
 .controlsLower {
@@ -244,6 +246,7 @@ button {
     flex: 1;
     padding: 12px;
     font-size: 18px;
+    line-height: 1;
     border-radius: 8px;
     border: none;
     position: relative;

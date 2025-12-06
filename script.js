@@ -10,28 +10,25 @@ const starterChips = [
     // { color: 'orange', value: 1 },
 
     // { color: 'white', value: 3 },
+    { color: 'blue', value: 1 },
     { color: 'blue', value: 2 },
     { color: 'blue', value: 4 },
+    { color: 'blue', value: 1 },
     { color: 'blue', value: 2 },
     { color: 'blue', value: 4 },
+    { color: 'blue', value: 1 },
     { color: 'blue', value: 2 },
     { color: 'blue', value: 4 },
+    { color: 'blue', value: 1 },
     { color: 'blue', value: 2 },
     { color: 'blue', value: 4 },
+    { color: 'blue', value: 1 },
+    { color: 'blue', value: 3 },
+    { color: 'blue', value: 4 },
+    { color: 'blue', value: 1 },
     { color: 'blue', value: 2 },
     { color: 'blue', value: 4 },
-    { color: 'blue', value: 2 },
-    { color: 'blue', value: 4 },
-    { color: 'blue', value: 2 },
-    { color: 'blue', value: 4 },
-    { color: 'blue', value: 2 },
-    { color: 'blue', value: 4 },
-    { color: 'blue', value: 2 },
-    { color: 'blue', value: 4 },
-    { color: 'blue', value: 2 },
-    { color: 'blue', value: 4 },
-    { color: 'blue', value: 2 },
-    { color: 'blue', value: 4 },
+    { color: 'blue', value: 1 },
     { color: 'blue', value: 2 },
     { color: 'blue', value: 4 },
 ];
@@ -158,7 +155,7 @@ const allVariants = {
         }
     },
 };
-const chipBuyOrder = [
+const chipBuyOrder = [ // Order that the chips appear on the shop screen
     [
         { color: 'green', value: 1 },
         { color: 'green', value: 2 },
@@ -194,13 +191,9 @@ const whiteCounter = document.getElementById('whiteCounter');
 const whiteOdds = document.getElementById('whiteOdds');
 
 let trackSpaces = []; 
-let actionLog = []; // Text log of actions
-let bagChips = [...starterChips]; // Chips in bag at start of game
-let availableChips = [...bagChips]; // Chips in bag at start of each round
-let drawnChips = []; // Chips placed on board
-let totalWhite = 0;
-let totalWhiteMax = 7;
-let isPotionFull = true;
+let actionLog = []; 
+let bagChips = [...starterChips]; 
+let availableChips = [...bagChips]; 
 let dropletStats = { color:'droplet', value:0 };
 let ratStats = { color:'rat', value:0 };
 let chipVariants = { green:'C', red:'B', blue:'A', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
@@ -211,30 +204,41 @@ for (const color in chipVariants) { // List the chip costs of only the selected 
     chipCosts[color] = allVariants.cost[color][variant];
     chipDesc[color] = allVariants.desc[color][variant];
 }
+
 let game = { // All variables for the game state
     lobby: {
-        seed: null,
-        variant: {},
+        variant: {}, // Which variants are selected for each color
+        seed: null,  // Seed encoding of chip variants, for joining a lobby
+        actionLog: [], // Text log of actions
     },
     round: {
-        count: 1,
-        prevBuy: { gold: 0, chips: [] },
+        count: 1, // Which round it is
+        prevBuy: { gold: 0, chips: [] }, // Amount of gold and chips purchased in previous shop phase
     },
     player: {
-        droplet: { color:'droplet', value:0 },
-        rat: { color:'rat', value:0 },
-        potion: true,
+        droplet: { color:'droplet', value:0 }, // Stats of the droplet, can be upgraded
+        rat: { color:'rat', value:0 },         // Stats of rat tails, set at the start of each round
+        isPotionFull: true, // If the potion is available
     },
     chips: {
-        owned: [...starterChips],
-        inBag: [...starterChips],
-        redSaved: [],
-        cost: {},
-        desc: {},
+        owned: [...starterChips], // Chips in bag at start of game, added to in shop phase
+        inBag: [...starterChips], // Chips in bag at start of each round, chips removed as they are drawn
+        drawn: [],                // Chips removed from the bag (placed on board, except Red B)
+        totalWhite: 0,    // Current total of white chips placed
+        totalWhiteMax: 7, // Maximum total of white chips without busting (usually 7)
+        redSaved: [], // List of Red B chips, to be placed at end of round, or saved until next round
+        cost: {}, // Chip costs of the selected variants: [color][value]
+        desc: {}, // Chip descriptions of the selected variants: [color][value]
     },
     track: document.getElementById('trackActual'),
         // track.elements, track.currIndex, track.currElem
 };
+game.lobby.variant = { green:'C', red:'B', blue:'A', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
+for (const color in chipVariants) { // List the chip costs of only the selected variants
+    const variant = chipVariants[color];
+    chipCosts[color] = allVariants.cost[color][variant];
+    chipDesc[color] = allVariants.desc[color][variant];
+}
 
 function initializeBoard(track = game.track) {
     track.innerHTML = '';
@@ -245,7 +249,7 @@ function initializeBoard(track = game.track) {
         return newSpace;
     });
     track.currIndex = 0; // Index of the furthest space a chip is placed
-    track.currElem = track.elements[0]; // Element of current space
+    track.currElem = track.elements[0]; // Element of furthest chip space
     placeChip(dropletStats, track);
     if (ratStats.value) {
         placeChip(ratStats, track);
@@ -259,7 +263,7 @@ function regularPull() {
     placeChip(chip);
 }
 function grabChipFromBag(multiDraw = 0) {
-    if (availableChips.length === 0 || totalWhite > totalWhiteMax || game.track.currIndex == game.track.elements.length-1) return;
+    if (availableChips.length === 0 || game.chips.totalWhite > game.chips.totalWhiteMax || game.track.currIndex == game.track.elements.length-1) return;
     if (multiDraw) {
         const arr = [...availableChips.keys()]; // [0,1,2,...]
         arr.forEach((_, i) => { const j = Math.floor(Math.random() * (i + 1));  [arr[i], arr[j]] = [arr[j], arr[i]] });
@@ -273,7 +277,7 @@ function removeChipFromBag(chip) {
     if (chip == undefined) return;
     availableChips = availableChips.filter(c => c != chip); // Remove chip from current bag
     if (chip.body) {
-        if (chip.color == 'white' && chip.value+totalWhite > totalWhiteMax) {
+        if (chip.color == 'white' && chip.value+game.chips.totalWhite > game.chips.totalWhiteMax) {
             animateChipExplosion(chip.body);
         } else {
             Matter.Composite.remove(world, chip.body); // Remove physics chip from world
@@ -282,7 +286,7 @@ function removeChipFromBag(chip) {
     }
     if (chip.color == 'red' && chipVariants.red == 'B') { redSaveForLater(chip); return; }
     writeToLog(`Placed ${chip.color} ${chip.value}-chip`);
-    drawnChips.push(chip);
+    game.chips.drawn.push(chip);
     return chip;
 }
 function placeChip(chip, track = game.track) {
@@ -290,11 +294,12 @@ function placeChip(chip, track = game.track) {
     const isReal = (track == game.track);
     // Calculate chip effects
     let spaces = chip.value;
-    if (chip.color == 'red' && chipVariants.red == 'A' && drawnChips.filter(c => c.color=='orange').length > 0) spaces += 1;
-    if (chip.color == 'red' && chipVariants.red == 'A' && drawnChips.filter(c => c.color=='orange').length > 2) spaces += 1;
-    if (chip.color == 'red' && chipVariants.red == 'C' && drawnChips[drawnChips.length-2]?.color == 'white') spaces += drawnChips[drawnChips.length-2]?.value;
-    if (chip.color == 'white' && chipVariants.red == 'D' && chip.value == 1 && drawnChips.filter(c => c.color == 'red').length) spaces += 1;
-    if (chip.color == 'yellow' && chipVariants.yellow == 'A' && drawnChips[drawnChips.length-2]?.color == 'white' && isReal) yellowReturnWhite();
+    // doubler!
+    if (chip.color == 'yellow' && chipVariants.yellow == 'A' && game.chips.drawn[game.chips.drawn.length-2]?.color == 'white' && isReal) yellowReturnWhite();
+    if (chip.color == 'red' && chipVariants.red == 'A' && game.chips.drawn.filter(c => c.color=='orange').length > 0) spaces += 1;
+    if (chip.color == 'red' && chipVariants.red == 'A' && game.chips.drawn.filter(c => c.color=='orange').length > 2) spaces += 1;
+    if (chip.color == 'red' && chipVariants.red == 'C' && game.chips.drawn[game.chips.drawn.length-2]?.color == 'white') spaces += game.chips.drawn[game.chips.drawn.length-2]?.value;
+    if (chip.color == 'white' && chipVariants.red == 'D' && chip.value == 1 && game.chips.drawn.filter(c => c.color == 'red').length) spaces += 1;
     // Render the chip onto the track space
     track.currIndex = Math.min(track.elements.length-2, track.currIndex+spaces);
     track.currElem = track.elements[track.currIndex];
@@ -324,7 +329,7 @@ function bluePeeking(value) { // Peek at multiple chips, and you may place one
 }
 function yellowReturnWhite() {
     resetTrackSpace(game.track.currElem);
-    const [chip] = drawnChips.splice(drawnChips.length-2,1);
+    const [chip] = game.chips.drawn.splice(game.chips.drawn.length-2,1);
     writeToLog(`Yellow effect returned ${chip.color} ${chip.value}-chip`, chipColors.yellow);
     chip.body = spawnChip(chip.color, chip.value)
     availableChips.push(chip);
@@ -358,12 +363,12 @@ function awardVPR(VP = 0, ruby = 0, chip = null) {
 }
 
 function usePotion() {
-    if (drawnChips.length && isPotionFull && totalWhite <= totalWhiteMax) {
-        // potionFilled = false;
+    if (game.chips.drawn.length && game.player.isPotionFull && game.chips.totalWhite <= game.chips.totalWhiteMax) {
+        // game.player.isPotionFull = false;
         // Reset the display of the track space
         removeLastChip(game.track);
         // Put chip back into bag
-        const chip = drawnChips.pop();
+        const chip = game.chips.drawn.pop();
         chip.body = spawnChip(chip.color, chip.value)
         availableChips.push(chip);
         writeToLog(`Used potion on ${chip.color} ${chip.value}-chip`);
@@ -383,15 +388,15 @@ function resetTrackSpace(space = game.track.currElem) {
     space.style.background = '';
 }
 function updateWhiteCount() {
-    totalWhite = drawnChips.filter(c => c.color === 'white').reduce((sum, c) => sum + c.value, 0);
-    whiteCounter.innerHTML = `${totalWhite}/${totalWhiteMax}`;
-    if (totalWhite > totalWhiteMax) {
-        writeToLog(`Pot exploded with ${totalWhite} white chips!`,chipColors.red)
+    game.chips.totalWhite = game.chips.drawn.filter(c => c.color === 'white').reduce((sum, c) => sum + c.value, 0);
+    whiteCounter.innerHTML = `${game.chips.totalWhite}/${game.chips.totalWhiteMax}`;
+    if (game.chips.totalWhite > game.chips.totalWhiteMax) {
+        writeToLog(`Pot exploded with ${game.chips.totalWhite} white chips!`,chipColors.red)
         createBustForce();
         whiteOdds.innerHTML = 'BUST!';
         drawBtn.innerHTML = 'BUST!';
     } else {
-        const odds = Math.ceil(availableChips.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + totalWhite) > totalWhiteMax), 0)/availableChips.length*100);
+        const odds = Math.ceil(availableChips.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + game.chips.totalWhite) > game.chips.totalWhiteMax), 0)/availableChips.length*100);
         whiteOdds.innerHTML = `${odds}%`;
         drawBtn.innerHTML = 'Draw Chip';
     };
@@ -474,7 +479,7 @@ function showSelectorSplash({
     const track = quickElement('div','track');
     track.style.margin = "0px -20px 18px";
     initializeBoard(track);
-    drawnChips.forEach(c => placeChip(c, track));
+    game.chips.drawn.forEach(c => placeChip(c, track));
 
     if (showTrack) box.appendChild(track);
     if (title) box.appendChild(titleElem);
@@ -621,22 +626,79 @@ window.addEventListener("resize", resizeCanvasToParent); // Update on window res
 // --- Matter.js setup ---
 const engine = Matter.Engine.create();
 const world = engine.world;
+engine.world.gravity.y = 1.5;
 const render = Matter.Render.create({
     canvas: canvas,
     engine: engine,
     options: {
         wireframes: false,
-        background: "#252129",
+        background: "rgba(0,0,0,0)",//"#25212955",  // ????????????????????????????????
         width: canvas.width,
         height: canvas.height,
         antiAlias: true
     }
 });
+render.options.hasBounds = false;
+render.options.wireframes = false;
+render.options.background = null;
+render.options.showDebug = false;
+render.options.showBroadphase = false;
+render.options.showBounds = false;
+render.options.showVelocity = false;
+
+let gyro = { enabled: true, lockout: false, factor: 0.25, shakeFactor: 0.5, spinFactor: 0.00005 };
+window.addEventListener("devicemotion", e => {
+    if (gyro.enabled && !gyro.lockout) {
+        let grav = e.accelerationIncludingGravity;
+        const accel = e.acceleration;
+        engine.world.gravity.x = -grav.x*gyro.factor - accel.x*gyro.shakeFactor;
+        engine.world.gravity.y = grav.y*gyro.factor + accel.y*gyro.shakeFactor;
+
+        // rotationRate.gamma = rotation around Z axis (how fast user twists the phone)
+        const spin = e.rotationRate?.gamma || 0;
+        const spinForce = spin * gyro.spinFactor;
+        const allBodies = Matter.Composite.allBodies(engine.world);
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        for (const body of allBodies) {
+            const dx = body.position.x - centerX;
+            const dy = body.position.y - centerY;
+            // Tangential vector: perpendicular to radius vector
+            const tx = -dy;
+            const ty = dx;
+            // Normalize
+            const mag = Math.sqrt(tx*tx + ty*ty);
+            if (mag === 0) continue;
+            const nx = tx / mag;
+            const ny = ty / mag;
+            // Apply force
+            Matter.Body.applyForce(body, body.position, {
+                x: -nx * spinForce,
+                y: -ny * spinForce
+            });
+        }
+    }
+});
+// if (typeof DeviceMotionEvent.requestPermission === "function") { // Request permission for gyro
+//     document.getElementById("startButton").addEventListener("click", () => {
+//         DeviceMotionEvent.requestPermission();
+//     });
+// }
 
 const runner = Matter.Runner.create();
 Matter.Render.run(render);
 Matter.Runner.run(runner, engine);
 
+Matter.Events.on(engine, "collisionStart", event => { // If moving downward, cancel collision (let it pass through)
+    for (let pair of event.pairs) {                   // If moving upward, allow collision normally
+        if (pair.bodyA.label === "oneWay" || pair.bodyB.label === "oneWay") {
+            const other = pair.bodyA.label === "oneWay" ? pair.bodyB : pair.bodyA;
+            if (other.velocity.y > 0) { // Check vertical velocity of other body
+                pair.isActive = false; // Disable collision response
+            }
+        }
+    }
+});
 // --- Sequential chip spawning ---
 function addPhysicsChips(chips) {
     let delay = 220;
@@ -663,7 +725,7 @@ function spawnChip(color, value) {
             frictionAir: 0.01,
             render: {
                 sprite: {
-                    texture: "chips/chip-test.png",
+                    texture: `chips/green${value}.png`,
                     xScale: 1/2,
                     yScale: 1/2
                 }
@@ -838,9 +900,9 @@ function enterSummaryPhase() {
     box.appendChild(msgElem);
 
     let endOptions = {
-        green: drawnChips.filter((c,i) => c.color == 'green' && i > drawnChips.length-3 && chipVariants.green != 'C').length,
-        purple: drawnChips.filter((c) => c.color == 'purple').length,
-        black: drawnChips.filter((c) => c.color == 'black').length
+        green: game.chips.drawn.filter((c,i) => c.color == 'green' && i > game.chips.drawn.length-3 && chipVariants.green != 'C').length,
+        purple: game.chips.drawn.filter((c) => c.color == 'purple').length,
+        black: game.chips.drawn.filter((c) => c.color == 'black').length
     }
 
     const greenRow = quickElement("div","confirm-buttons");
@@ -869,9 +931,9 @@ function enterSummaryPhase() {
         greenRow.appendChild(greenBtn);
     } else { // Show a dead button
         if (chipVariants.green == 'C') {
-            greenElem.textContent = drawnChips.filter((c,i) => c.color == 'green').length;
+            greenElem.textContent = game.chips.drawn.filter((c,i) => c.color == 'green').length;
             greenRow.appendChild(createButton({ buttonColor:"grey",
-                buttonText: (totalWhite==7) ? "Green chips doubled!" : "Need exactly 7 white" }));
+                buttonText: (game.chips.totalWhite==7) ? "Green chips doubled!" : "Need exactly 7 white" }));
         } else {
             greenRow.appendChild(createButton({ buttonText:"No green chips", buttonColor:"grey" }));
         }
@@ -961,16 +1023,20 @@ function enterBuyPhase(gold = spaceValues[game.track.currIndex+1][0]) { // Enter
 }
 function restartRound() {
     availableChips = [...bagChips];
-    drawnChips = [];
+    game.chips.drawn = [];
     game.chips.redSaved = [];
     Matter.Composite.clear(world, false);
     const wallProperties = { isStatic: true, render: { visible: false } };
     const walls = [ // rectangle(x_center, y_center, width, height, options)
         Matter.Bodies.rectangle(canvas.width / 2, canvas.height + 20, canvas.width, 40, wallProperties), // floor
+        Matter.Bodies.rectangle(canvas.width / 2, -canvas.height - 20, canvas.width, 40, wallProperties), // roof
+        Matter.Bodies.rectangle(canvas.width / 2, -20, canvas.width, 40, { isStatic: true, render: { visible: false }, label: "oneWay" }), // half-roof
         Matter.Bodies.rectangle(-20, 0, 40, canvas.height*2, wallProperties), // left
         Matter.Bodies.rectangle(canvas.width + 20, 0, 40, canvas.height*2, wallProperties) // right
     ];
     Matter.Composite.add(world, walls);
+    gyro.lockout = true; 
+    setTimeout(() => gyro.lockout = false, 2500 );
     updateWhiteCount();
     initializeBoard();
     addPhysicsChips(availableChips);
@@ -1036,7 +1102,7 @@ function showWitchMenu() {
 // Button to expand board and open rat menu ===========================
 game.track.addEventListener('click', clickOnTrack);
 function clickOnTrack() {
-    if (drawnChips.length) { // If drawn chips, expand the board
+    if (game.chips.drawn.length) { // If drawn chips, expand the board
         expandBoard();
     } else { // If no chips drawn, show the rat menu
         openRatMenu();

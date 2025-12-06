@@ -17,4 +17,4 @@ echo The local server will launch . . .
 pause
 echo .
 echo The local server is live
-python -m http.server 8123 --bind 0.0.0.0
+python -m http.server 8123 --bind 0.0.0.0 --directory "%~dp0.."
