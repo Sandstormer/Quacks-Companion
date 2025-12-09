@@ -25,7 +25,7 @@ let game = { // All variables for the game state
         desc: {}, // Chip descriptions of the selected variants: [color][value]
     },
     track: document.getElementById('trackActual'),
-        // track.elements, track.currIndex, track.currElem
+        // track.elements, track.currIndex, track.currElem, track.placed
 };
 game.lobby.variant = { green:'C', red:'B', blue:'A', yellow:'C', orange:'A', black:'A', purple:'B', white:'A' };
 for (const color in game.lobby.variant) { // List the chip costs of only the selected variants
@@ -53,20 +53,15 @@ function initializeBoard(track = game.track) {
 
 function regularPull() {
     if (document.querySelector(".confirm-overlay")) return; // Can't pull if there is an overlay
-    const grabbedChip = grabChipFromBag()
+    const [grabbedChip] = grabChipFromBag()
     const chip = removeChipFromBag(grabbedChip);
     placeChip(chip);
 }
-function grabChipFromBag(multiDraw = 0) {
-    if (game.chips.inBag.length === 0 || game.chips.totalWhite > game.chips.totalWhiteMax || game.track.currIndex == game.track.elements.length-2) return;
-    if (multiDraw) {
-        const arr = [...game.chips.inBag.keys()]; // [0,1,2,...]
-        arr.forEach((_, i) => { const j = Math.floor(Math.random() * (i + 1));  [arr[i], arr[j]] = [arr[j], arr[i]] });
-        return arr.slice(0, multiDraw).map(i => game.chips.inBag[i]); // Return array of chips
-    } else { // Return one index
-        const index = Math.floor(Math.random() * game.chips.inBag.length);
-        return game.chips.inBag[index];
-    }
+function grabChipFromBag(multiDraw = 1) {
+    if (game.chips.inBag.length === 0 || game.chips.totalWhite > game.chips.totalWhiteMax || game.track.currIndex == game.track.elements.length-2) return [];
+    const arr = [...game.chips.inBag.keys()]; // [0,1,2,...]
+    arr.forEach((_, i) => { const j = Math.floor(Math.random() * (i + 1));  [arr[i], arr[j]] = [arr[j], arr[i]] }); // Fisher-Yates shuffle
+    return arr.slice(0, multiDraw).map(i => game.chips.inBag[i]); // Return array of chips
 }
 function removeChipFromBag(chip) {
     if (chip == undefined) return;
@@ -160,7 +155,8 @@ function awardVPR(VP = 0, ruby = 0, chip = null) {
 }
 
 function usePotion() {
-    if (game.track.placed.length && game.player.isPotionFull && game.chips.totalWhite <= game.chips.totalWhiteMax) {
+    if ( game.track.placed.length && game.player.isPotionFull && game.chips.totalWhite <= game.chips.totalWhiteMax
+         && !['rat','droplet'].includes(game.track.placed[game.track.placed.length-1].color) ) {
         // Put chip back into bag, and reset the track space
         const chip = removeLastChip(game.track);
         chip.body = spawnChip(chip.color, chip.value)
@@ -340,7 +336,7 @@ function showSelectorSplash({
     track.currElem.scrollIntoView({inline: "center"});
 }
 function numToText(num) {
-    const text = ['zero','this','two','three','four','five','six','seven','eight','nine','ten'];
+    const text = ['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
     if (num >= text.length) return `${num} chips`;
     return `${text[num]} chip${num==1?'':'s'}`;
 }
@@ -495,6 +491,14 @@ Matter.Events.on(engine, "collisionStart", event => { // If moving downward, can
             if (other.velocity.y > 0) { // Check vertical velocity of other body
                 pair.isActive = false; // Disable collision response
             }
+        } else { // Scale bounciness with velocity, so large piles don't jiggle endlessly
+            const v = Math.max(pair.bodyA.speed, pair.bodyB.speed);
+            const newRestitution = v > 5 ? 0.9 :
+                                   v > 3 ? 0.7 :
+                                   v > 1 ? 0.2 :
+                                           0;
+            pair.bodyA.restitution = newRestitution;
+            pair.bodyB.restitution = newRestitution;
         }
     }
 });
@@ -519,7 +523,7 @@ function spawnChip(color, value) {
         -100 - Math.random() * 300,
         radius,
         {
-            restitution: 0.95,
+            restitution: 0.9,
             friction: 0.1,
             frictionAir: 0.01,
             render: {
@@ -797,7 +801,7 @@ function enterSummaryPhase() {
                             if (endOptions.purple == 1) game.chips.owned.push({color:"black", value:1});
                             if (endOptions.purple == 2) { game.player.droplet.value += 1; game.chips.owned.push({color:"green", value:1}); game.chips.owned.push({color:"blue", value:2}); }
                             if (endOptions.purple == 3) { game.player.droplet.value += 2; game.chips.owned.push({color:"yellow", value:4}); }
-                            while (endOptions.purple) { endOptions.purple -= 1;  game.chips.owned = game.chips.owned.filter(chip => chip != game.chips.owned.find(c => c.color === 'purple' && c.value === 1)); }
+                            while (endOptions.purple) { endOptions.purple -= 1;  game.chips.owned.splice(game.chips.owned.findIndex(c => c.color === 'purple'), 1); }
                             disableButton(purpleBtn, purpleRow);
                             showConfirmSplash({
                                 message: ( endOptions.purple == 1 ? "You get 1 victory point and a ruby!<br><br>A black 1-chip is added to your bag." : 
@@ -943,14 +947,16 @@ function showWitchMenu() {
         onClick: () => showSelectorSplash({
             title: "Add chip to bag for free",
             message: "",
-            confirmText: "Add chip to bag",
+            confirmText: "Purchase",
             holdToConfirm: true,
             chipsToSelect: chipBuyOrder,
             maxSelect: 1,
             onConfirm: (selectedChips) => {
                 selectedChips.forEach(thisChip => {
-                    game.chips.owned.push({ color:thisChip.color, value:thisChip.value });
-                    game.chips.inBag.push({ color:thisChip.color, value:thisChip.value });
+                    const newChip = { color:thisChip.color, value:thisChip.value };
+                    game.chips.owned.push(newChip);
+                    game.chips.inBag.push(newChip);
+                    addPhysicsChips([newChip]);
                     writeToLog(`Used witch effect to steal ${thisChip.color} ${thisChip.value}-chip`, 'pink');
                 });
                 document.body.removeChild(overlay);

@@ -11,20 +11,23 @@
       <div class="controlsUpper">
         <button id="logBtn">Log</button>
         <button id="rulesBtn">Rules</button>
-        <button id="endBtn">End</button>
+        <div id="whiteContainer">
+          <div id="whiteCounter">0/7</div>
+          <div id="whiteOdds">0%</div>
+        </div>
         <button id="witchBtn">Witch</button>
-        <button id="potionBtn">Potion</button>
+        <button id="endBtn">End</button>
       </div>
       <div id="trackContainer">
         <div id="trackActual" class="track"></div>
       </div>
       <div id="bagChipsContainer">
-          <canvas id="chipsCanvas"></canvas>
+        <canvas id="chipsCanvas"></canvas>
       </div>
       <div class="controlsLower">
-        <div id="whiteContainer">
-          <div id="whiteCounter">0/7</div>
-          <div id="whiteOdds">0%</div>
+        <div id="potionBtn">
+          <!-- <div class="overlayText outlineText">Potion</div> -->
+          <img src="ui/potion.png">
         </div>
         <button id="drawBtn">Draw Chip</button>
       </div>
