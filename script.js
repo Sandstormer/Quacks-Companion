@@ -27,7 +27,7 @@ let game = { // All variables for the game state
     track: document.getElementById('trackActual'),
         // track.elements, track.currIndex, track.currElem, track.placed
 };
-game.lobby.variant = { green:'C', red:'B', blue:'A', yellow:'C', orange:'A', black:'A', purple:'B', white:'A' };
+game.lobby.variant = { green:'C', red:'A', blue:'A', yellow:'C', orange:'A', black:'A', purple:'B', white:'A' };
 for (const color in game.lobby.variant) { // List the chip costs of only the selected variants
     const variant = game.lobby.variant[color];
     game.chips.cost[color] = allVariants.cost[color][variant];
@@ -45,10 +45,64 @@ function initializeBoard(track = game.track) {
     track.currIndex = 0; // Index of the furthest space a chip is placed
     track.currElem = track.elements[0]; // Element of furthest chip space
     track.placed = []; // List of chips currently placed on the track
-    placeChip(game.player.droplet, track);
+    placeChip(game.player.droplet, track, false);
     if (game.player.rat.value) {
-        placeChip(game.player.rat, track);
+        placeChip(game.player.rat, track, false);
     }
+}
+
+function loadGameState() {
+    game.lobby = loadFromStorage("game.lobby");
+    game.round.count = loadFromStorage("game.round.count");
+    game.player = loadFromStorage("game.player");
+    game.chips.owned = loadFromStorage("savedOwnedChips");
+    restartRound();
+    const savedPlacedChips = loadFromStorage("savedPlacedChips");
+    savedPlacedChips.forEach((c,i) => {
+        const [chip] = game.chips.inBag.splice(game.chips.inBag.findIndex(chip => chip.color==c.color && chip.value==c.value), 1);
+        // placeChip(chip, game.track, (i==savedPlacedChips.length-1)); // set isReal to true on last chip
+        placeChip(chip, game.track, false);
+    });
+}
+function loadFromStorage(key) {
+  if (localStorage.getItem(key) !== null) return JSON.parse(localStorage.getItem(key));
+}
+function saveGameState() { // Make sure blue peeking is the same after reload!!!!!!!!! and delayed reds!
+    localStorage.setItem("game.lobby",JSON.stringify(game.lobby));
+    localStorage.setItem("game.round.count",game.round.count);
+    localStorage.setItem("game.player",JSON.stringify(game.player));
+    // Save chips that are owned or placed, but only the color and value
+    const savedOwnedChips = game.chips.owned.map(c => { return {color:c.color,value:c.value}; });
+    localStorage.setItem("savedOwnedChips",JSON.stringify(savedOwnedChips));
+    const savedPlacedChips = game.track.placed.filter(c => !['rat','droplet'].includes(c.color)).map(c => { return {color:c.color,value:c.value}; });
+    localStorage.setItem("savedPlacedChips",JSON.stringify(savedPlacedChips));
+    // game = { // All variables for the game state
+    //     lobby: {
+    //         variant: {}, // Which variants are selected for each color
+    //         seed: null,  // Seed encoding of chip variants, for joining a lobby
+    //         actionLog: [], // Text log of actions
+    //     },
+    //     round: {
+    //         count: 1, // Which round it is
+    //         prevBuy: { gold: 0, chips: [] }, // Amount of gold and chips purchased in previous shop phase
+    //     },
+    //     player: {
+    //         droplet: { color:'droplet', value:1 }, // Stats of the droplet, can be upgraded
+    //         rat: { color:'rat', value:2 },         // Stats of rat tails, set at the start of each round
+    //         isPotionFull: true, // If the potion is available
+    //     },
+    //     chips: {
+    //         owned: [...starterChips], // Chips in bag at start of game, added to in shop phase
+    //         inBag: [...starterChips], // Chips in bag at start of each round, chips removed as they are drawn
+    //         totalWhite: 0,    // Current total of white chips placed
+    //         totalWhiteMax: 7, // Maximum total of white chips without busting (usually 7)
+    //         redSaved: [], // List of Red B chips, to be placed at end of round, or saved until next round
+    //         cost: {}, // Chip costs of the selected variants: [color][value]
+    //         desc: {}, // Chip descriptions of the selected variants: [color][value]
+    //     },
+    //     track: document.getElementById('trackActual'),
+    //         // track.elements, track.currIndex, track.currElem, track.placed
+    // };
 }
 
 function regularPull() {
@@ -78,9 +132,9 @@ function removeChipFromBag(chip) {
     writeToLog(`Placed ${chip.color} ${chip.value}-chip`);
     return chip;
 }
-function placeChip(chip, track = game.track) {
+function placeChip(chip, track = game.track, isReal = true) {
     if (chip == undefined) return;
-    const isReal = (track == game.track);
+    if (track != game.track) isReal = false;
     let spaces = chip.value;  const prevChip = track.placed[track.placed.length-1];
     // Do chip effects that increase the number of spaces
     if (chip.color == 'yellow' && game.lobby.variant.yellow == 'A' && prevChip?.color == 'white' && isReal) yellowReturnWhite();
@@ -98,7 +152,11 @@ function placeChip(chip, track = game.track) {
     track.currElem.style.background = chipColors[chip.color];
     const rubyElem = track.currElem.ruby ? '<img src="ui/ruby.png" class="trackRuby"</img>' : '';
     track.currElem.innerHTML = `${rubyElem}${chip.value}`;
-    if (isReal) updateWhiteCount();
+    if (isReal) {
+        console.log('real place');
+        updateWhiteCount();
+        saveGameState();
+    }
     // Do chips effects that resolve after the chip is placed
     if (chip.color == 'blue' && game.lobby.variant.blue == 'C' && track.currElem.ruby && isReal) awardVPR(0,1,chip);
     if (chip.color == 'blue' && game.lobby.variant.blue == 'D' && track.currElem.ruby && isReal) awardVPR(chip.value,0,chip);
@@ -393,12 +451,33 @@ function flashRed(element) {
 }
 
 //////////////////// vvvvvvvvvvvvv
-// === Setup Matter.js ===
+// ========== Matter.js setup ==========
 
 const canvas = document.getElementById("chipsCanvas");
+resizeCanvasToParent(); // Initial resize (after DOM is ready)
+window.addEventListener("resize", resizeCanvasToParent); // Update on window resize
+const engine = Matter.Engine.create();
+const world = engine.world;
+engine.world.gravity.y = 1.5;
+const render = Matter.Render.create({
+    canvas: canvas,
+    engine: engine,
+    options: {
+        wireframes: false,
+        background: "#25212955",
+        width: canvas.width,
+        height: canvas.height,
+        antiAlias: true
+    }
+});
+const runner = Matter.Runner.create();
+Matter.Render.run(render);
+Matter.Runner.run(runner, engine);
 
-// Make sure parent has been laid out
-function resizeCanvasToParent() {
+let gyro = { enabled: true, lockout: false, factor: 0.25, shakeFactor: 0.5, spinFactor: 0.00005 };
+
+function resizeCanvasToParent() { // Set the proper size for the canvas
+    // Make sure parent has been laid out
     const parent = canvas.parentElement;
     const width  = parent.clientWidth;
     const height = parent.clientHeight;
@@ -411,37 +490,10 @@ function resizeCanvasToParent() {
     canvas.width  = width  * ratio;
     canvas.height = height * ratio;
     console.log({
-      css: [width, height],
-      internal: [canvas.width, canvas.height]
+        css: [width, height],
+        internal: [canvas.width, canvas.height]
     });
 }
-resizeCanvasToParent(); // Initial resize (after DOM is ready)
-window.addEventListener("resize", resizeCanvasToParent); // Update on window resize
-
-// --- Matter.js setup ---
-const engine = Matter.Engine.create();
-const world = engine.world;
-engine.world.gravity.y = 1.5;
-const render = Matter.Render.create({
-    canvas: canvas,
-    engine: engine,
-    options: {
-        wireframes: false,
-        background: "rgba(0,0,0,0)",//"#25212955",  // ????????????????????????????????
-        width: canvas.width,
-        height: canvas.height,
-        antiAlias: true
-    }
-});
-render.options.hasBounds = false;
-render.options.wireframes = false;
-render.options.background = null;
-render.options.showDebug = false;
-render.options.showBroadphase = false;
-render.options.showBounds = false;
-render.options.showVelocity = false;
-
-let gyro = { enabled: true, lockout: false, factor: 0.25, shakeFactor: 0.5, spinFactor: 0.00005 };
 window.addEventListener("devicemotion", e => {
     if (gyro.enabled && !gyro.lockout) {
         let grav = e.accelerationIncludingGravity;
@@ -479,10 +531,6 @@ window.addEventListener("devicemotion", e => {
 //         DeviceMotionEvent.requestPermission();
 //     });
 // }
-
-const runner = Matter.Runner.create();
-Matter.Render.run(render);
-Matter.Runner.run(runner, engine);
 
 Matter.Events.on(engine, "collisionStart", event => { // If moving downward, cancel collision (let it pass through)
     for (let pair of event.pairs) {                   // If moving upward, allow collision normally
@@ -630,33 +678,7 @@ function animateChipExplosion(chipBody, growDuration = 1000, explosionForce = 0.
     requestAnimationFrame(animate);
 }
 
-
-
-
-
 //////////////////// ^^^^^^^^^^^^^
-
-drawBtn.addEventListener('click', () => regularPull());
-potionBtn.addEventListener('click', usePotion);
-logBtn.addEventListener('click', () => 
-    showConfirmSplash({ // Show the log
-        title: "Action Log:",
-        message: [...game.lobby.actionLog,['','End of log']].map(a => `<div class="log-row"><div>${a[0]}</div><div style="color:${a[2]};">${a[1]}</div></div>`).join(''),
-        cancelText: "Return to game",
-        confirmText: "",
-        holdToConfirm: false
-    })
-);
-document.addEventListener('keydown', (event) => {
-    if (event.key == " ") {
-        regularPull();
-        event.preventDefault();
-    }
-    if (event.key == "Enter") {
-        event.preventDefault();
-    }
-});
-
 
 // Button to end round, buy chips, and restart round ===========================
 endBtn.addEventListener('click', () => // Initial confirmation to end round
@@ -897,11 +919,17 @@ function enterBuyPhase(gold = spaceValues[game.track.currIndex+1][0]) { // Enter
         }
     });
 }
-function restartRound() {
+function restartRound(round = game.round.count) {
     // Start the round with owned chips, except reds which were saved for the next round
+    // Restarting this round makes the red chips stay removed...
     game.chips.inBag = [...game.chips.owned].filter(c => !game.chips.redSaved.includes(c));
-    game.chips.redSaved = [];
     game.track.placed = [];
+    game.round.count = round;
+    updateWhiteCount();
+    initializeBoard();
+    initializePhysics();
+}
+function initializePhysics() {
     Matter.Composite.clear(world, false);
     const wallProperties = { isStatic: true, render: { visible: false } };
     const walls = [ // rectangle(x_center, y_center, width, height, options)
@@ -914,9 +942,37 @@ function restartRound() {
     Matter.Composite.add(world, walls);
     gyro.lockout = true; 
     setTimeout(() => gyro.lockout = false, 2500 );
-    updateWhiteCount();
-    initializeBoard();
     addPhysicsChips(game.chips.inBag);
+}
+function restartGame() {
+    game = { // All variables for the game state
+        lobby: {
+            variant: {}, // Which variants are selected for each color
+            seed: null,  // Seed encoding of chip variants, for joining a lobby
+            actionLog: [], // Text log of actions
+        },
+        round: {
+            count: 1, // Which round it is
+            prevBuy: { gold: 0, chips: [] }, // Amount of gold and chips purchased in previous shop phase
+        },
+        player: {
+            droplet: { color:'droplet', value:1 }, // Stats of the droplet, can be upgraded
+            rat: { color:'rat', value:2 },         // Stats of rat tails, set at the start of each round
+            isPotionFull: true, // If the potion is available
+        },
+        chips: {
+            owned: [...starterChips], // Chips in bag at start of game, added to in shop phase
+            inBag: [...starterChips], // Chips in bag at start of each round, chips removed as they are drawn
+            totalWhite: 0,    // Current total of white chips placed
+            totalWhiteMax: 7, // Maximum total of white chips without busting (usually 7)
+            redSaved: [], // List of Red B chips, to be placed at end of round, or saved until next round
+            cost: {}, // Chip costs of the selected variants: [color][value]
+            desc: {}, // Chip descriptions of the selected variants: [color][value]
+        },
+        track: document.getElementById('trackActual'),
+            // track.elements, track.currIndex, track.currElem, track.placed
+    };
+    restartRound(1);
 }
 
 // Button to open witch menu and activate witch effects ===========================
@@ -935,7 +991,7 @@ function showWitchMenu() {
         buttonColor: chipColors.blue,
         onClick: () => {
             writeToLog(`Used witch effect to re-do last shop phase`, 'pink');
-            game.round.prevBuy.chips.forEach(chip => game.chips.owned = game.chips.owned.filter(c => c != chip));
+            game.round.prevBuy.chips.forEach(chip => game.chips.owned.splice(game.chips.owned.findIndex(c => c.color === chip.color && c.value === chip.value), 1));
             enterBuyPhase(game.round.prevBuy.gold);
         }
     });
@@ -1022,3 +1078,33 @@ function openRatMenu() {
 }
 
 restartRound();
+
+drawBtn.addEventListener('click', () => regularPull());
+potionBtn.addEventListener('click', usePotion);
+logBtn.addEventListener('click', () => 
+    showConfirmSplash({ // Show the log
+        title: "Action Log:",
+        message: [...game.lobby.actionLog,['','End of log']].map(a => `<div class="log-row"><div>${a[0]}</div><div style="color:${a[2]};">${a[1]}</div></div>`).join(''),
+        cancelText: "Return to game",
+        confirmText: "",
+        holdToConfirm: false
+    })
+);
+document.addEventListener('keydown', (event) => {
+    if (event.key == " ") {
+        regularPull();
+        event.preventDefault();
+    }
+    if (event.key == "Enter") {
+        event.preventDefault();
+    }
+    if (event.key == "r") {
+        restartRound();
+    }
+    if (event.key == "g") {
+        restartGame();
+    }
+    if (event.key == "l") {
+        loadGameState();
+    }
+});
