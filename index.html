@@ -9,14 +9,27 @@
   <div id="staticContainer">
     <div id="mainContainer">
       <div class="controlsUpper">
-        <button id="logBtn">Log</button>
-        <button id="rulesBtn">Rules</button>
+        <button>
+          <div class="overlayText outlineText">Log</div>
+          <img src="ui/quill.png" id="logBtn">
+        </button>
+        <button>
+          <div class="overlayText outlineText">Rules</div>
+          <img src="ui/rules.png" id="rulesBtn">
+        </button>
         <div id="whiteContainer">
-          <div id="whiteCounter">0/7</div>
-          <div id="whiteOdds">0%</div>
+          <div id="whiteCounter" class="outlineText">0/7</div>
+          <img src="ui/cloud.png" id="whiteCloud">
+          <!-- <div id="whiteOdds">0%</div> -->
         </div>
-        <button id="witchBtn">Witch</button>
-        <button id="endBtn">End</button>
+        <button>
+          <div class="overlayText outlineText">Witch</div>
+          <img src="ui/witch.png" id="witchBtn">
+        </button>
+        <button>
+          <div class="overlayText outlineText">End</div>
+          <img src="ui/bell.png" id="endBtn">
+        </button>
       </div>
       <div id="trackContainer">
         <div id="trackActual" class="track"></div>

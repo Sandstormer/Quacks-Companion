@@ -238,19 +238,42 @@ function resetTrackSpace(space = game.track.currElem) {
     space.style.background = '';
 }
 function updateWhiteCount() {
-    game.chips.totalWhite = game.track.placed.filter(c => c.color === 'white').reduce((sum, c) => sum + c.value, 0);
-    whiteCounter.innerHTML = `${game.chips.totalWhite}/${game.chips.totalWhiteMax}`;
-    if (game.chips.totalWhite > game.chips.totalWhiteMax) {
-        writeToLog(`Pot exploded with ${game.chips.totalWhite} white chips!`,chipColors.red)
-        createBustForce();
-        whiteOdds.innerHTML = 'BUST!';
-        drawBtn.innerHTML = 'BUST!';
-    } else {
-        const odds = Math.ceil(game.chips.inBag.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + game.chips.totalWhite) > game.chips.totalWhiteMax), 0)/game.chips.inBag.length*100);
-        whiteOdds.innerHTML = `${odds}%`;
-        drawBtn.innerHTML = 'Draw Chip';
-    };
+    const newTotal = game.track.placed.filter(c => c.color === 'white').reduce((sum, c) => sum + c.value, 0);
+    if (newTotal != game.chips.totalWhite) {
+        game.chips.totalWhite = newTotal;
+        whiteCounter.innerHTML = `${game.chips.totalWhite}/${game.chips.totalWhiteMax}`;
+        if (game.chips.totalWhite > game.chips.totalWhiteMax) {
+            writeToLog(`Pot exploded with ${game.chips.totalWhite} white chips!`,chipColors.red)
+            createBustForce();
+            drawBtn.innerHTML = 'BUST!';
+        } else {
+            const odds = Math.ceil(game.chips.inBag.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + game.chips.totalWhite) > game.chips.totalWhiteMax), 0)/game.chips.inBag.length*100);
+            if (odds) whiteCloud.classList.add('cloud-vibrate');
+            drawBtn.innerHTML = 'Draw Chip';
+            whiteCloud.classList.remove('cloud-pulse');  void whiteCloud.offsetWidth;
+            whiteCloud.classList.add('cloud-pulse');
+        };
+    }
 }
+// function shakeScreen(duration = 500, intensity = 10) {
+//     const container = document.getElementById("mainContainer"); // Or the canvas parent
+//     const start = performance.now();
+//     function animate(time) {
+//         const elapsed = time - start;
+//         const effIntensity = intensity * (1 - elapsed/duration);
+//         if (elapsed < duration) {
+//             // random offset each frame
+//             const x = (Math.random() * 2 - 1) * effIntensity;
+//             const y = (Math.random() * 2 - 1) * effIntensity;
+//             container.style.transform = `translate(${x}px, ${y}px)`;
+//             requestAnimationFrame(animate);
+//         } else {
+//             // Reset transform
+//             container.style.transform = "";
+//         }
+//     }
+//     requestAnimationFrame(animate);
+// }
 
 function writeToLog(actionString, color = "white") {
     const now = new Date();
@@ -499,7 +522,7 @@ window.addEventListener("devicemotion", e => {
         let grav = e.accelerationIncludingGravity;
         const accel = e.acceleration;
         engine.world.gravity.x = -grav.x*gyro.factor - accel.x*gyro.shakeFactor;
-        engine.world.gravity.y = grav.y*gyro.factor + accel.y*gyro.shakeFactor;
+        engine.world.gravity.y = ( gyro.lockout ? 1.5 : grav.y*gyro.factor + accel.y*gyro.shakeFactor );
 
         // rotationRate.gamma = rotation around Z axis (how fast user twists the phone)
         const spin = e.rotationRate?.gamma || 0;

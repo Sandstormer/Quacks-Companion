@@ -7,27 +7,27 @@ const endBtn = document.getElementById('endBtn');
 const drawBtn = document.getElementById('drawBtn');
 const potionBtn = document.getElementById('potionBtn');
 const whiteCounter = document.getElementById('whiteCounter');
-const whiteOdds = document.getElementById('whiteOdds');
+const whiteCloud = document.getElementById('whiteCloud');
 
 // ========== Chip Information ==========
 const starterChips = [
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 1 },
-    // { color: 'white', value: 2 },
-    // { color: 'white', value: 2 },
-    // { color: 'white', value: 3 },
-    // { color: 'green', value: 1 },
-    // { color: 'orange', value: 1 },
+    { color: 'white', value: 1 },
+    { color: 'white', value: 1 },
+    { color: 'white', value: 1 },
+    { color: 'white', value: 1 },
+    { color: 'white', value: 2 },
+    { color: 'white', value: 2 },
+    { color: 'white', value: 3 },
+    { color: 'green', value: 1 },
+    { color: 'orange', value: 1 },
 
     // { color: 'white', value: 3 },
-    { color: 'yellow', value: 1 },
-    { color: 'yellow', value: 2 },
-    { color: 'yellow', value: 4 },
-    { color: 'red', value: 1 },
-    { color: 'red', value: 2 },
-    { color: 'red', value: 4 },
+    // { color: 'yellow', value: 1 },
+    // { color: 'yellow', value: 2 },
+    // { color: 'yellow', value: 4 },
+    // { color: 'red', value: 1 },
+    // { color: 'red', value: 2 },
+    // { color: 'red', value: 4 },
 ];
 const spaceValues = [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0,1],[6,1],[7,1],[8,1],[9,1,1],[10,2],[11,2],[12,2],[13,2,1],[14,3],[15,3],[15,3,1],[16,3],[16,4],[17,4],[17,4,1],[18,4],[18,5],[19,5],[19,5,1],[20,5],[20,6],[21,6],[21,6,1],[22,7],[22,7,1],[23,7],[23,8],[24,8],[24,8,1],[25,9],[25,9,1],[26,9],[26,10],[27,10],[27,10,1],[28,11],[28,11,1],[29,11],[29,12],[30,12],[30,12,1],[31,12],[31,13],[32,13],[32,13,1],[33,14],[33,14,1],[35,15]];
 const chipColors = {white:'white', black:'black', orange:'peru', green:'green', red:'firebrick', blue:'royalblue', yellow:'gold', purple:'blueviolet', droplet:'gray', rat:'gray'}

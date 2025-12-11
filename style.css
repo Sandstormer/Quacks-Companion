@@ -132,27 +132,92 @@ button {
         0px -1px 0 black,
         0px -2px 0 black;
 }
+/* ===================== Upper Controls ===================== */
 .controlsUpper {
     margin: 8px;
     display: grid;
     gap: 8px;
     grid-template-columns: repeat(5, 1fr);
+    max-width: calc(100vw - 16px);
 }
 .controlsUpper button {
     /* Could be 38px to 76px, usually 59px */
     aspect-ratio: 1;
     min-width: 52px; /* Includes padding and border, works out to 38px */
     font-size: min(4vw, 16px);
-    background-color: #0E0B11;
-    border: 2px solid #29252D;
-    border-radius: 4px;
+    background-color: transparent;
+    border: none;
+    display: flex;
 }
+#logBtn {
+    margin: -12px -10px -8px;
+}
+#rulesBtn {
+    margin: -16px;
+}
+#witchBtn {
+    margin: -20px -15px -10px;
+}
+#endBtn {
+    margin: -15px -12px -9px;
+}
+#whiteContainer {
+    position: relative;
+    aspect-ratio: 1;
+    min-width: 52px;
+    font-size: min(5vw, 20px);
+    display: flex;
+}
+/* ======= White Cloud Display with Animations ======= */
 #whiteCounter {
-    color: gray;
+    font-weight: bold;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    color: white;
+    z-index: 101;
 }
-#whiteOdds {
-    color: gray;
+#whiteCloud {
+    z-index: 100;
+    --dx: 0px;
+    --dy: 0px;
+    --scale: 1;
+    --rot: 0;
+    transform:
+        scale(var(--scale))
+        rotate(var(--rot))
+        translate(var(--dx), var(--dy));
 }
+@property --dx { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --dy { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --scale { syntax: "<number>"; inherits: false; initial-value: 1; }
+@property --rot { syntax: "<number>"; inherits: false; initial-value: 0; }
+.cloud-vibrate { animation: vibrateAnim 400ms infinite; }
+.cloud-pulse { animation: animPulseOut 400ms ease-out; }
+.cloud-vibrate.cloud-pulse {
+  animation:
+    vibrateAnim 400ms infinite,
+    animPulseOut 400ms ease-out;
+}
+@keyframes vibrateAnim {
+  0%   { --dy: 0px;  }
+  5%   { --dy: -1px; }
+  25%  { --dy: -2px; }
+  45%  { --dy: -1px; }
+  50%  { --dy: 0px;  }
+  55%  { --dy: 1px;  }
+  75%  { --dy: 2px;  }
+  95%  { --dy: 1px;  }
+  100% { --dy: 0px;  }
+}
+@keyframes animPulseOut {
+    0% { --scale: 1.5; }
+    25% { --scale: 1.25; }
+    100% { --scale: 1; }
+}
+/* ===================== Lower Controls ===================== */
 .controlsLower {
     margin: 8px;
     height: 85px;
