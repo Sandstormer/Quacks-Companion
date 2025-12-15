@@ -58,8 +58,10 @@ function setElementToTrackSpace(elem = game.track.currElem) {
 }
 function setElementToChip(elem, chip, mult=0, ruby=0) {
     elem.className = 'chip';
-    elem.style.backgroundImage = `url("chips/green${chip.value}.png")`;
-    elem.innerHTML = ( ruby ? '<img src="ui/ruby.png" class="trackRuby">' : '' );
+    elem.style.backgroundImage = `url("chips/green${ chip?.value ?? '' }.png")`;
+    elem.innerHTML = '';
+    if (ruby) elem.innerHTML += '<img src="ui/ruby.png" class="trackRuby">';
+    if (mult) elem.innerHTML += `<div class="overlayChipText outlineText">×${mult}</div>`;
 }
 
 function loadGameState() {
@@ -228,13 +230,23 @@ function awardVPR(VP = 0, ruby = 0, chip = null) {
 function usePotion() {
     if ( game.track.placed.length && game.player.isPotionFull && game.chips.totalWhite <= game.chips.totalWhiteMax
          && !['rat','droplet'].includes(game.track.placed[game.track.placed.length-1].color) ) {
-        // Put chip back into bag, and reset the track space
-        const chip = removeLastChip(game.track);
-        chip.body = spawnChip(chip.color, chip.value)
-        game.chips.inBag.push(chip);
-        writeToLog(`Used potion on ${chip.color} ${chip.value}-chip`);
-        updateWhiteCount();
-        // game.player.isPotionFull = false;
+        const lastChip = quickChipElement(game.track.placed[game.track.placed.length-1]);
+        lastChip.style.margin = '5px auto';
+        const textChip = lastChip.outerHTML;
+        showConfirmSplash({
+            title: `Use Potion?`,
+            message: textChip,
+            cancelText: "Go Back",
+            confirmText: "Use Potion",
+            onConfirm: () => { // Put chip back into bag, and reset the track space
+                const chip = removeLastChip(game.track);
+                chip.body = spawnChip(chip.color, chip.value)
+                game.chips.inBag.push(chip);
+                writeToLog(`Used potion on ${chip.color} ${chip.value}-chip`);
+                updateWhiteCount();
+                game.player.isPotionFull = false;
+            },
+        });
     }
 }
 function removeLastChip(track = game.track) {
@@ -433,7 +445,7 @@ function createButton({
     const newButton = quickElement("button","splash-btn",buttonText);
     newButton.style.backgroundColor = buttonColor;
     if (!holdToClick) {
-        newButton.onclick = onClick; // Simple click
+        newButton.addEventListener("click", e => { onClick(e); }); // Could check e.detail
     } else {
         const bar = quickElement("div","splash-btn-hold-bar");
         newButton.appendChild(bar);
@@ -455,13 +467,14 @@ function createButton({
             }, 16);
         };
         const cancelHold = () => { clearInterval(interval); bar.style.width = "0%"; };
-        newButton.addEventListener("contextmenu", e => e.preventDefault());
         newButton.addEventListener("touchstart", e => { e.preventDefault(); startHold(); }, { passive: false });
         newButton.addEventListener("touchend", cancelHold);
         newButton.addEventListener("mousedown", e => { e.preventDefault(); startHold(); });
         newButton.addEventListener("mouseup", cancelHold);
         newButton.addEventListener("mouseleave", cancelHold);
     }
+    newButton.addEventListener("contextmenu", e => e.preventDefault());
+    newButton.addEventListener("dblclick", e => e.preventDefault());
     return newButton;
 }
 function quickElement(type, className, innerHTML = '') {
@@ -1101,17 +1114,66 @@ function showWitchMenu() {
 // Button to expand board and open rat menu ===========================
 game.track.addEventListener('click', clickOnTrack);
 function clickOnTrack() {
-    if (game.track.placed.length) { // If drawn chips, expand the board
-        expandBoard();
-    } else { // If no chips drawn, show the rat menu
-        openRatMenu();
+    if (game.track.placed.length && !['rat','droplet'].includes(game.track.placed[game.track.placed.length-1].color)) {
+        expandBoard(); // If actual chips have been drawn, expand the board
+    } else { 
+        openRatMenu(); // If no chips drawn, show the rat menu
     }
 }
 function expandBoard() {
 
 }
 function openRatMenu() {
+    const overlay = quickElement("div","splash-overlay");
+    const box = quickElement("div","splash-box");
+    const titleElem = quickElement("h2","splash-title","Rat Tails");
+    box.appendChild(titleElem);
+    const msgElem = quickElement("p","splash-message","Set the number of rat tails for this round");
+    box.appendChild(msgElem);
 
+    const ratRow = quickElement("div","splash-buttons-row");
+    const chipIcon = quickChipElement({ color:'rat' });
+    let amount = game.player.rat.value;  setElementToChip(chipIcon, { color:'rat' }, amount);
+    const minusBtn = createButton({
+        buttonText: "-",
+        buttonColor: chipColors.red,
+        onClick: () => {
+            amount = Math.max(0, amount-1);
+            setElementToChip(chipIcon, { color:'rat' }, amount);
+        }
+    });
+    const plusBtn = createButton({
+        buttonText: "+",
+        buttonColor: chipColors.green,
+        onClick: () => {
+            amount = amount+1;
+            setElementToChip(chipIcon, { color:'rat' }, amount);
+        }
+    });
+    ratRow.appendChild(minusBtn);  ratRow.appendChild(chipIcon);  ratRow.appendChild(plusBtn);
+    msgElem.appendChild(ratRow);
+
+    const btnRow = quickElement("div","splash-buttons-row");
+    const cancelBtn = createButton({
+        buttonText: "Cancel",
+        buttonColor: chipColors.blue,
+        onClick: () => document.body.removeChild(overlay)
+    });
+    const confirmBtn = createButton({
+        buttonText: `Set Rat Tails`,
+        buttonColor: chipColors.orange,
+        onClick: () => {
+            document.body.removeChild(overlay);
+            game.player.rat.value = amount;
+            initializeTrack(); // Replace track with new rat tails
+        }
+    });
+
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(confirmBtn);
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 }
 
 restartRound();

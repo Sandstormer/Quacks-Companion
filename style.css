@@ -119,9 +119,13 @@ button {
     padding: 5px;
     display: inline-block;
     color: white;
-    cursor: pointer;
     font-weight: bold;
     font-size: 16px;
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
 }
 #bagChipsContainer {
     background-color: #252129;
@@ -251,6 +255,15 @@ button {
     pointer-events: none;
     color: white;
 }
+.overlayChipText {
+    position: absolute;
+    top: 70%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    pointer-events: none;
+    color: white;
+}
 .outlineText {
     text-shadow:
         1px 1px 0 black,
@@ -334,11 +347,6 @@ button {
     border: none;
     position: relative;
     overflow: hidden;
-    cursor: pointer;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-    -ms-user-select: none;
 }
 .splash-btn-hold-bar {
     position: absolute;
