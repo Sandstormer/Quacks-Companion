@@ -27,19 +27,19 @@ let game = { // All variables for the game state
     track: document.getElementById('trackActual'),
         // track.elements, track.currIndex, track.currElem, track.placed
 };
-game.lobby.variant = { green:'C', red:'A', blue:'A', yellow:'C', orange:'A', black:'A', purple:'B', white:'A' };
+game.lobby.variant = { green:'C', red:'B', blue:'C', yellow:'C', orange:'A', black:'A', purple:'B', white:'A' };
 for (const color in game.lobby.variant) { // List the chip costs of only the selected variants
     const variant = game.lobby.variant[color];
     game.chips.cost[color] = allVariants.cost[color][variant];
     game.chips.desc[color] = allVariants.desc[color][variant];
 }
 
-function initializeBoard(track = game.track) {
+function initializeTrack(track = game.track) {
     track.innerHTML = '';
     track.elements = spaceValues.map((val,i) => { // Elements for board spaces
         const newSpace = document.createElement('div');
         newSpace.gold = val[0];  newSpace.VP = val[1];  newSpace.ruby = val[2];
-        resetTrackSpace(newSpace);  track.appendChild(newSpace);
+        setElementToTrackSpace(newSpace);  track.appendChild(newSpace);
         return newSpace;
     });
     track.currIndex = 0; // Index of the furthest space a chip is placed
@@ -49,6 +49,17 @@ function initializeBoard(track = game.track) {
     if (game.player.rat.value) {
         placeChip(game.player.rat, track, false);
     }
+}
+function setElementToTrackSpace(elem = game.track.currElem) {
+    elem.className = 'trackSpace';
+    const rubyElem = elem.ruby ? '<img src="ui/ruby.png" class="trackRuby">' : '';
+    elem.innerHTML = `${rubyElem}<div class="trackGold">${elem.gold}</div><div class="trackVP">${elem.VP}</div>`;
+    elem.style.background = '';
+}
+function setElementToChip(elem, chip, mult=0, ruby=0) {
+    elem.className = 'chip';
+    elem.style.backgroundImage = `url("chips/green${chip.value}.png")`;
+    elem.innerHTML = ( ruby ? '<img src="ui/ruby.png" class="trackRuby">' : '' );
 }
 
 function loadGameState() {
@@ -63,6 +74,7 @@ function loadGameState() {
         // placeChip(chip, game.track, (i==savedPlacedChips.length-1)); // set isReal to true on last chip
         placeChip(chip, game.track, false);
     });
+    updateWhiteCount();
 }
 function loadFromStorage(key) {
   if (localStorage.getItem(key) !== null) return JSON.parse(localStorage.getItem(key));
@@ -106,7 +118,7 @@ function saveGameState() { // Make sure blue peeking is the same after reload!!!
 }
 
 function regularPull() {
-    if (document.querySelector(".confirm-overlay")) return; // Can't pull if there is an overlay
+    if (document.querySelector(".splash-overlay")) return; // Can't pull if there is an overlay
     const [grabbedChip] = grabChipFromBag()
     const chip = removeChipFromBag(grabbedChip);
     placeChip(chip);
@@ -135,6 +147,7 @@ function removeChipFromBag(chip) {
 function placeChip(chip, track = game.track, isReal = true) {
     if (chip == undefined) return;
     if (track != game.track) isReal = false;
+    if (track.currIndex == track.elements.length-2) return;
     let spaces = chip.value;  const prevChip = track.placed[track.placed.length-1];
     // Do chip effects that increase the number of spaces
     if (chip.color == 'yellow' && game.lobby.variant.yellow == 'A' && prevChip?.color == 'white' && isReal) yellowReturnWhite();
@@ -146,12 +159,8 @@ function placeChip(chip, track = game.track, isReal = true) {
     // Render the chip onto the track space
     track.placed.push(chip);
     track.currIndex = Math.min(track.elements.length-2, track.currIndex+spaces);
-    track.currElem = track.elements[track.currIndex];
-    track.currElem.scrollIntoView({behavior: "smooth", inline: "center"});
-    track.currElem.className = 'chip';
-    track.currElem.style.background = chipColors[chip.color];
-    const rubyElem = track.currElem.ruby ? '<img src="ui/ruby.png" class="trackRuby"</img>' : '';
-    track.currElem.innerHTML = `${rubyElem}${chip.value}`;
+    updateTrackGlow(track);
+    setElementToChip(track.currElem, chip, 0, track.currElem.ruby);
     if (isReal) {
         console.log('real place');
         updateWhiteCount();
@@ -162,6 +171,12 @@ function placeChip(chip, track = game.track, isReal = true) {
     if (chip.color == 'blue' && game.lobby.variant.blue == 'D' && track.currElem.ruby && isReal) awardVPR(chip.value,0,chip);
     if (chip.color == 'purple' && game.lobby.variant.purple == 'C' && track.currElem.gold >= 10 && isReal) awardVPR(Math.floor(track.currElem.gold/10),0,chip);
     if (chip.color == 'blue' && game.lobby.variant.blue == 'A' && isReal) bluePeeking(chip.value);
+}
+function updateTrackGlow(track = game.track) {
+    track.currElem = track.elements[track.currIndex];
+    track.elements.forEach(e => e.classList.remove("track-glow"));
+    track.elements[track.currIndex+1].classList.add("track-glow");
+    track.currElem.scrollIntoView({behavior: "smooth", inline: "center"});
 }
 function bluePeeking(value) { // Peek at multiple chips, and you may place one
     writeToLog(`Blue effect peeked at ${value} chips`, chipColors.blue);
@@ -178,7 +193,7 @@ function bluePeeking(value) { // Peek at multiple chips, and you may place one
     });
 }
 function yellowReturnWhite() {
-    resetTrackSpace(game.track.currElem);
+    setElementToTrackSpace(game.track.currElem);
     const [chip] = game.track.placed.splice(game.track.placed.length-2,1);
     writeToLog(`Yellow effect returned ${chip.color} ${chip.value}-chip`, chipColors.yellow);
     chip.body = spawnChip(chip.color, chip.value)
@@ -186,8 +201,7 @@ function yellowReturnWhite() {
 }
 function redSaveForLater(chip) {
     game.chips.redSaved.push(chip);
-    const newChip = quickElement('div','chip',chip.value)
-    newChip.style.background = chipColors[chip.color];
+    const newChip = quickChipElement(chip);
     newChip.style.margin = '5px auto';
     showConfirmSplash({
         title: `Red Chip Saved For Later`,
@@ -197,9 +211,8 @@ function redSaveForLater(chip) {
     });
 }
 function awardVPR(VP = 0, ruby = 0, chip = null) {
-    const newChip = quickElement('div','chip',chip.value)
-    if (chip.color == 'blue') newChip.innerHTML = `<img src="ui/ruby.png" class="trackRuby"</img>${chip.value}`;
-    newChip.style.background = chipColors[chip.color];
+    const newChip = quickChipElement(chip);
+    if (chip.color == 'blue') newChip.innerHTML = '<img src="ui/ruby.png" class="trackRuby">';
     newChip.style.margin = '5px auto';
     const textChip = chip ? `${newChip.outerHTML}` : '';
     const textVP = VP ? `You get ${VP} Victory Points!` : '';
@@ -225,17 +238,10 @@ function usePotion() {
     }
 }
 function removeLastChip(track = game.track) {
-    resetTrackSpace(track.currElem);
+    setElementToTrackSpace(track.currElem);
     track.currIndex = track.elements.map(e => e.className).lastIndexOf("chip");
-    track.currElem = track.elements[track.currIndex];
-    track.currElem.scrollIntoView({behavior: "smooth", inline: "center"});
+    updateTrackGlow(track);
     return track.placed.pop();
-}
-function resetTrackSpace(space = game.track.currElem) {
-    space.className = 'trackSpace';
-    const rubyElem = space.ruby ? '<img src="ui/ruby.png" class="trackRuby"</img>' : '';
-    space.innerHTML = `${rubyElem}<div class="trackGold">${space.gold}</div><div class="trackVP">${space.VP}</div>`;
-    space.style.background = '';
 }
 function updateWhiteCount() {
     const newTotal = game.track.placed.filter(c => c.color === 'white').reduce((sum, c) => sum + c.value, 0);
@@ -289,11 +295,11 @@ function showConfirmSplash({
     onConfirm = () => {},
     holdToConfirm = false,
 }) {
-    const overlay = quickElement("div","confirm-overlay");
-    const box = quickElement("div","confirm-box");
-    const titleElem = quickElement("h2","confirm-title",title);
-    const msgElem = quickElement("p","confirm-message",message)
-    const btnRow = quickElement("div","confirm-buttons");
+    const overlay = quickElement("div","splash-overlay");
+    const box = quickElement("div","splash-box");
+    const titleElem = quickElement("h2","splash-title",title);
+    const msgElem = quickElement("p","splash-message",message)
+    const btnRow = quickElement("div","splash-buttons-row");
     const cancelBtn = createButton({
         buttonText: cancelText,
         buttonColor: chipColors.blue,
@@ -330,12 +336,12 @@ function showSelectorSplash({
     showGold = true,
     showTrack = false,
 }) {
-    let selectedChips = [];
-    const overlay = quickElement("div","confirm-overlay");
-    const box = quickElement("div","confirm-box");
-    const titleElem = quickElement("h2","confirm-title",title);
-    const msgElem = quickElement("p","confirm-message",message)
-    const btnRow = quickElement("div","confirm-buttons");
+    selectedChips = [];
+    const overlay = quickElement("div","splash-overlay");
+    const box = quickElement("div","splash-box");
+    const titleElem = quickElement("h2","splash-title",title);
+    const msgElem = quickElement("p","splash-message",message)
+    const btnRow = quickElement("div","splash-buttons-row");
     const confirmBtn = createButton({
         buttonText: "Skip",
         onClick: () => {
@@ -349,13 +355,10 @@ function showSelectorSplash({
         if (numSelected != 0) confirmBtn.firstChild.textContent = `${confirmText} ${numToText(numSelected)}`;
     };
 
-    const track = quickElement('div','track');
+    track = quickElement('div','track');
     track.style.margin = "0px -20px 18px";
-    initializeBoard(track);
-    game.track.placed.forEach(c => {
-        if (!['rat','droplet'].includes(c.color)) placeChip(c, track);
-    });
-    ptrack = track;
+    initializeTrack(track);
+    game.track.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
 
     if (showTrack) box.appendChild(track);
     if (title) box.appendChild(titleElem);
@@ -367,8 +370,7 @@ function showSelectorSplash({
 
         thisBuyRow.forEach(chip => {
             const itemDiv = quickElement("div","chip-selector-item");
-            const chipIcon = quickElement("div","chip",chip.value);
-            chipIcon.style.background = chipColors[chip.color];
+            const chipIcon = quickChipElement(chip);
             itemDiv.appendChild(chipIcon);
             
             const cost = game.chips.cost[chip.color][chip.value];
@@ -378,9 +380,10 @@ function showSelectorSplash({
             chipRow.appendChild(itemDiv);
             itemDiv.addEventListener("click", () => {
                 if (selectedChips.includes(chip)) { // Unselect
-                    selectedChips.forEach(c => removeLastChip(track));
+                    initializeTrack(track); // Clear the track
+                    game.track.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
                     selectedChips = selectedChips.filter(x => x !== chip);
-                    selectedChips.forEach(c => placeChip(c, track));
+                    selectedChips.forEach(c => placeChip(c, track)); // Re-place all the chips on the track
                     itemDiv.classList.remove("selected");
                 } else { // Select if possible
                     if (maxSelect == 1) { // Swap single selection
@@ -427,12 +430,12 @@ function createButton({
     onClick = () => {},
     holdToClick = false
 }) {
-    const newButton = quickElement("button","confirm-btn",buttonText);
+    const newButton = quickElement("button","splash-btn",buttonText);
     newButton.style.backgroundColor = buttonColor;
     if (!holdToClick) {
         newButton.onclick = onClick; // Simple click
     } else {
-        const bar = quickElement("div","confirm-hold-bar");
+        const bar = quickElement("div","splash-btn-hold-bar");
         newButton.appendChild(bar);
 
         let interval;
@@ -467,6 +470,11 @@ function quickElement(type, className, innerHTML = '') {
     newElement.innerHTML = innerHTML;
     return newElement;
 }
+function quickChipElement(chip) {
+    const newElement = document.createElement("div");
+    setElementToChip(newElement, chip);
+    return newElement;
+}
 function flashRed(element) {
     element.classList.remove("flash-red"); // reset if already applied
     void element.offsetWidth;              // force reflow so animation restarts
@@ -482,12 +490,14 @@ window.addEventListener("resize", resizeCanvasToParent); // Update on window res
 const engine = Matter.Engine.create();
 const world = engine.world;
 engine.world.gravity.y = 1.5;
+engine.enableSleeping = true;
 const render = Matter.Render.create({
     canvas: canvas,
     engine: engine,
     options: {
         wireframes: false,
-        background: "#25212955",
+        showSleeping: false,
+        background: "ui/woodv.png",
         width: canvas.width,
         height: canvas.height,
         antiAlias: true
@@ -518,7 +528,7 @@ function resizeCanvasToParent() { // Set the proper size for the canvas
     });
 }
 window.addEventListener("devicemotion", e => {
-    if (gyro.enabled && !gyro.lockout) {
+    if (gyro.enabled) {
         let grav = e.accelerationIncludingGravity;
         const accel = e.acceleration;
         engine.world.gravity.x = -grav.x*gyro.factor - accel.x*gyro.shakeFactor;
@@ -562,14 +572,6 @@ Matter.Events.on(engine, "collisionStart", event => { // If moving downward, can
             if (other.velocity.y > 0) { // Check vertical velocity of other body
                 pair.isActive = false; // Disable collision response
             }
-        } else { // Scale bounciness with velocity, so large piles don't jiggle endlessly
-            const v = Math.max(pair.bodyA.speed, pair.bodyB.speed);
-            const newRestitution = v > 5 ? 0.9 :
-                                   v > 3 ? 0.7 :
-                                   v > 1 ? 0.2 :
-                                           0;
-            pair.bodyA.restitution = newRestitution;
-            pair.bodyB.restitution = newRestitution;
         }
     }
 });
@@ -595,8 +597,9 @@ function spawnChip(color, value) {
         radius,
         {
             restitution: 0.9,
-            friction: 0.1,
+            friction: 0.3,
             frictionAir: 0.01,
+            sleepThreshold: 45,
             render: {
                 sprite: {
                     texture: `chips/green${value}.png`,
@@ -741,12 +744,12 @@ function placeSavedReds() {
 }
 // Do end of round summary
 function enterSummaryPhase() {
-    const overlay = quickElement("div","confirm-overlay");
-    const box = quickElement("div","confirm-box");
-    const titleElem = quickElement("h2","confirm-title","End of Round");
+    const overlay = quickElement("div","splash-overlay");
+    const box = quickElement("div","splash-box");
+    const titleElem = quickElement("h2","splash-title","End of Round");
     box.appendChild(titleElem);
     
-    const msgElem = quickElement("p","confirm-message","You get E!")
+    const msgElem = quickElement("p","splash-message","You get xxxxxxxx!")
     box.appendChild(msgElem);
 
     let endOptions = {
@@ -764,11 +767,11 @@ function enterSummaryPhase() {
             // B:{ 1:6, 2:11, 4:18 }, // free chip
             // C:{ 1:6, 2:11, 4:21 }, // seven white
             // D:{ 1:4, 2:8, 4:14 },  // ruby swap
-    const greenRow = quickElement("div","confirm-buttons");
-    const greenElem = quickElement("div","chip",endOptions.green); greenElem.style.backgroundColor = chipColors.green;
+    const greenRow = quickElement("div","splash-buttons-row");
+    const greenElem = quickChipElement({ color:'green', value:0 });
     greenRow.appendChild(greenElem);
     if (endOptions.green) {
-        const buttonText = { A:"Receive Bonus!", B:"Receive Bonus!", D:'Pay 1 <img src="ui/ruby.png" class="textRuby"</img> ruby to move droplet?' };
+        const buttonText = { A:"Receive Bonus!", B:"Receive Bonus!", D:'Pay 1 <img src="ui/ruby.png" class="textRuby"> ruby to move droplet?' };
         const greenBtn = createButton({
             buttonText: buttonText[game.lobby.variant.purple],
             onClick: () => {
@@ -815,8 +818,8 @@ function enterSummaryPhase() {
     }
     box.appendChild(greenRow);
     
-    const purpleRow = quickElement("div","confirm-buttons");
-    const purpleElem = quickElement("div","chip",endOptions.purple); purpleElem.style.backgroundColor = chipColors.purple;
+    const purpleRow = quickElement("div","splash-buttons-row");
+    const purpleElem = quickChipElement({ color:'purple', value:0 });
     purpleRow.appendChild(purpleElem);
     if (endOptions.purple) {
         const buttonText = { A:"Receive Bonus!", B:`Trade in ${endOptions.purple} purple chips?`, D:"Upgrade a Chip!" };
@@ -846,15 +849,15 @@ function enterSummaryPhase() {
                             if (endOptions.purple == 1) game.chips.owned.push({color:"black", value:1});
                             if (endOptions.purple == 2) { game.player.droplet.value += 1; game.chips.owned.push({color:"green", value:1}); game.chips.owned.push({color:"blue", value:2}); }
                             if (endOptions.purple == 3) { game.player.droplet.value += 2; game.chips.owned.push({color:"yellow", value:4}); }
-                            while (endOptions.purple) { endOptions.purple -= 1;  game.chips.owned.splice(game.chips.owned.findIndex(c => c.color === 'purple'), 1); }
-                            disableButton(purpleBtn, purpleRow);
                             showConfirmSplash({
                                 message: ( endOptions.purple == 1 ? "You get 1 victory point and a ruby!<br><br>A black 1-chip is added to your bag." : 
-                                        ( endOptions.purple == 2 ? "You get 3 victory points!<br><br>Your droplet has been upgraded!<br>A green 1-chip and a blue 2-chip are added to your bag." : 
-                                            "You get 6 victory points and a ruby!<br><br>Your droplet has been upgraded twice!<br>A yellow 4-chip is added to your bag." )),
-                                cancelText: "Ok",
-                                confirmText: ""
-                            });
+                                    ( endOptions.purple == 2 ? "You get 3 victory points!<br><br>Your droplet has been upgraded!<br>A green 1-chip and a blue 2-chip are added to your bag." : 
+                                        "You get 6 victory points and a ruby!<br><br>Your droplet has been upgraded twice!<br>A yellow 4-chip is added to your bag." )),
+                                        cancelText: "Ok",
+                                        confirmText: ""
+                                    });
+                            while (endOptions.purple) { endOptions.purple -= 1;  game.chips.owned.splice(game.chips.owned.findIndex(c => c.color === 'purple'), 1); }
+                            disableButton(purpleBtn, purpleRow);
                         }
                     });
                 } else if (game.lobby.variant.purple == "D") {
@@ -882,8 +885,8 @@ function enterSummaryPhase() {
     }
     box.appendChild(purpleRow);
     
-    const blackRow = quickElement("div","confirm-buttons");
-    const blackElem = quickElement("div","chip",endOptions.black); blackElem.style.backgroundColor = chipColors.black;
+    const blackRow = quickElement("div","splash-buttons-row");
+    const blackElem = quickChipElement({ color:'black', value:0 });
     blackRow.appendChild(blackElem);
     if (endOptions.black) {
         const blackBtn = createButton({
@@ -895,17 +898,18 @@ function enterSummaryPhase() {
                     confirmText: "",
                     cancelText: "Ok"
                 });
+                disableButton(blackBtn, blackRow);
             },
             holdToClick: true
         });
         blackRow.appendChild(blackBtn);
 
-    } else {
+    } else { // Show a dead button
         blackRow.appendChild(createButton({ buttonText:"No black chips", buttonColor:"grey" }));
     }
     box.appendChild(blackRow);
 
-    const shopRow = quickElement("div","confirm-buttons");
+    const shopRow = quickElement("div","splash-buttons-row");
     const shopBtn = createButton({
         buttonText: "Go to buy chips",
         onClick: () => {
@@ -949,7 +953,7 @@ function restartRound(round = game.round.count) {
     game.track.placed = [];
     game.round.count = round;
     updateWhiteCount();
-    initializeBoard();
+    initializeTrack();
     initializePhysics();
 }
 function initializePhysics() {
@@ -966,6 +970,16 @@ function initializePhysics() {
     gyro.lockout = true; 
     setTimeout(() => gyro.lockout = false, 2500 );
     addPhysicsChips(game.chips.inBag);
+    Matter.Events.on(engine, "afterUpdate", () => {
+        for (const wall of walls) {
+            wall.position.x = Math.round(wall.position.x);
+            wall.position.y = Math.round(wall.position.y);
+            wall.velocity.x = 0;
+            wall.velocity.y = 0;
+            wall.angularVelocity = 0;
+            wall.angle = 0;
+        }
+    });
 }
 function restartGame() {
     game = { // All variables for the game state
@@ -1001,11 +1015,11 @@ function restartGame() {
 // Button to open witch menu and activate witch effects ===========================
 witchBtn.addEventListener('click', showWitchMenu);
 function showWitchMenu() {
-    const overlay = quickElement("div","confirm-overlay");
-    const box = quickElement("div","confirm-box");
-    const titleElem = quickElement("h2","confirm-title","Witch Menu");
+    const overlay = quickElement("div","splash-overlay");
+    const box = quickElement("div","splash-box");
+    const titleElem = quickElement("h2","splash-title","Witch Menu");
     box.appendChild(titleElem);
-    const msgElem = quickElement("p","confirm-message","Choose an effect");
+    const msgElem = quickElement("p","splash-message","Choose an effect");
     box.appendChild(msgElem);
     const witchContainer = quickElement("div","witch-container");
 
@@ -1044,8 +1058,8 @@ function showWitchMenu() {
     });
     witchContainer.appendChild(freeButton);
 
-    witchContainer.appendChild(quickElement("div","confirm-message","Peek at chips in bag:"))
-    const peekRow = quickElement("div","confirm-buttons");
+    witchContainer.appendChild(quickElement("div","splash-message","Peek at chips in bag:"))
+    const peekRow = quickElement("div","splash-buttons-row");
     peekRow.style.marginTop = "-10px";
     [1,2,3,4,5].forEach(value => {
         const peekButton = createButton({
@@ -1070,7 +1084,7 @@ function showWitchMenu() {
     });
     witchContainer.appendChild(peekRow);
 
-    const btnRow = quickElement("div","confirm-buttons");
+    const btnRow = quickElement("div","splash-buttons-row");
     const cancelBtn = createButton({
         buttonText: "Return to game",
         buttonColor: chipColors.blue,
