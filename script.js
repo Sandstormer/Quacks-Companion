@@ -58,7 +58,8 @@ function setElementToTrackSpace(elem = game.track.currElem) {
 }
 function setElementToChip(elem, chip, mult=0, ruby=0) {
     elem.className = 'chip';
-    elem.style.backgroundImage = `url("chips/green${ chip?.value ?? '' }.png")`;
+    const value = (['rat','droplet'].includes(chip.color) ? '' : (chip.value || ''));
+    elem.style.backgroundImage = `url("chips/${chip.color}${value}.png")`;
     elem.innerHTML = '';
     if (ruby) elem.innerHTML += '<img src="ui/ruby.png" class="trackRuby">';
     if (mult) elem.innerHTML += `<div class="overlayChipText outlineText">×${mult}</div>`;
@@ -603,6 +604,7 @@ function addPhysicsChips(chips) {
 }
 // --- Chip spawning ---
 function spawnChip(color, value) {
+    if (color=='rat' || color=='droplet') value = '';
     const radius = 64;
     const chipBody = Matter.Bodies.circle(
         Math.random() * (canvas.width - radius*2) + radius,
@@ -615,7 +617,7 @@ function spawnChip(color, value) {
             sleepThreshold: 45,
             render: {
                 sprite: {
-                    texture: `chips/green${value}.png`,
+                    texture: `chips/${color}${value}.png`,
                     xScale: 1/2,
                     yScale: 1/2
                 }
