@@ -377,12 +377,13 @@ function showSelectorSplash({
     track.style.margin = "0px -20px 18px";
     initializeTrack(track);
     game.track.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
-    function updatePreviewTrack() { // Update the preview track when a chip is selected/unselected
+    function updatePreviewTrack(chipToRemove = null) { // Update the preview track when a chip is selected/unselected
         if (showTrack) {
             initializeTrack(track); // Clear the track
             game.track.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
-            selectedChips = selectedChips.filter(x => x !== chip);
+            selectedChips = selectedChips.filter(x => x !== chipToRemove);
             selectedChips.forEach(c => placeChip(c, track)); // Re-place all the chips on the track
+            console.log(selectedChips);
         }
     }
 
@@ -425,7 +426,7 @@ function showSelectorSplash({
                 if (selectedChips.includes(chip)) { // Unselect
                     selectedChips = selectedChips.filter(x => x !== chip);
                     itemDiv.classList.remove("selected");
-                    updatePreviewTrack();
+                    updatePreviewTrack(chip);
                 } else { // Select if possible
                     if (maxSelect == 1) { // Swap single selection
                         if (cost > gold) {
@@ -473,7 +474,7 @@ function createButton({
     const newButton = quickElement("button","splash-btn",buttonText);
     newButton.style.backgroundColor = buttonColor;
     if (!holdToClick) {
-        newButton.addEventListener("click", e => { onClick(e); }); // Could check e.detail
+        newButton.addEventListener("click", e => onClick(e)); // Could check e.detail
     } else {
         const bar = quickElement("div","splash-btn-hold-bar");
         newButton.appendChild(bar);
@@ -497,6 +498,11 @@ function createButton({
         const cancelHold = () => { clearInterval(interval); bar.style.width = "0%"; };
         newButton.addEventListener("touchstart", e => { e.preventDefault(); startHold(); }, { passive: false });
         newButton.addEventListener("touchend", cancelHold);
+        newButton.addEventListener("touchmove", e => { // Manually detect if touch remains on button
+                const touch = e.touches[0];
+                const rect = newButton.getBoundingClientRect();
+                if (!(touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom)) cancelHold();
+            }, { passive: false } );
         newButton.addEventListener("mousedown", e => { e.preventDefault(); startHold(); });
         newButton.addEventListener("mouseup", cancelHold);
         newButton.addEventListener("mouseleave", cancelHold);
@@ -975,7 +981,7 @@ function enterBuyPhase(gold = spaceValues[game.track.currIndex+1][0]) { // Enter
         cancelText: "",
         confirmText: "Purchase",
         holdToConfirm: true,
-        chipsToSelect: chipBuyOrder,
+        chipsToSelect: chipBuyOrder.slice(0,-1),
         gold: gold,
         showDesc: true,
         onConfirm: (selectedChips) => {
@@ -1084,6 +1090,7 @@ function showWitchMenu() {
         onClick: () => {
             writeToLog(`Used witch effect to re-do last shop phase`, 'pink');
             game.round.prevBuy.chips.forEach(chip => game.chips.owned.splice(game.chips.owned.findIndex(c => c.color === chip.color && c.value === chip.value), 1));
+            document.body.removeChild(overlay);
             enterBuyPhase(game.round.prevBuy.gold);
         }
     });
@@ -1121,20 +1128,22 @@ function showWitchMenu() {
         const peekButton = createButton({
             buttonText: value,
             buttonColor: chipColors.blue,
-            onClick: () => showSelectorSplash({
-                title: "Peek at Chips",
-                message: "You may place 1 chip in your pot",
-                confirmText: "Place",
-                holdToConfirm: false,
-                chipsToSelect: [grabChipFromBag(value)],
-                maxSelect: 1,
-                showGold: false,
-                showTrack: true,
-                onConfirm: (selectedChips) => {
-                    if (selectedChips.length) writeToLog(`Used witch effect to peek at chips`, 'pink');
-                    placeChip(removeChipFromBag(selectedChips[0])) // Place selected chip
-                }
-            })
+            onClick: () => { showSelectorSplash({
+                    title: "Peek at Chips",
+                    message: "You may place 1 chip in your pot",
+                    confirmText: "Place",
+                    holdToConfirm: false,
+                    chipsToSelect: [grabChipFromBag(value)],
+                    maxSelect: 1,
+                    showGold: false,
+                    showTrack: true,
+                    onConfirm: (selectedChips) => {
+                        if (selectedChips.length) writeToLog(`Used witch effect to peek at chips`, 'pink');
+                        placeChip(removeChipFromBag(selectedChips[0])) // Place selected chip
+                    }
+                });
+                document.body.removeChild(overlay);
+            }
         });
         peekRow.appendChild(peekButton);
     });

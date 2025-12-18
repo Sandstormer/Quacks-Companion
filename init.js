@@ -191,6 +191,10 @@ const chipBuyOrder = [ // Order that the chips appear on the shop screen
         { color: 'orange', value: 1 },
         { color: 'black',  value: 1 },
         { color: 'purple', value: 1 },
+    ],[
+        { color: 'white', value: 1 },
+        { color: 'white', value: 2 },
+        { color: 'white', value: 3 },
     ]
 ];
 const chipRulesOrder = [ // Order that the chips appear on the rules screen
