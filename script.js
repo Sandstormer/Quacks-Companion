@@ -56,13 +56,14 @@ function setElementToTrackSpace(elem = game.track.currElem) {
     elem.innerHTML = `${rubyElem}<div class="trackGold">${elem.gold}</div><div class="trackVP">${elem.VP}</div>`;
     elem.style.background = '';
 }
-function setElementToChip(elem, chip, mult=0, ruby=0) {
+function setElementToChip(elem, chip, mult=null, ruby=0) {
     elem.className = 'chip';
     const value = (['rat','droplet'].includes(chip.color) ? '' : (chip.value || ''));
     elem.style.backgroundImage = `url("chips/${chip.color}${value}.png")`;
     elem.innerHTML = '';
     if (ruby) elem.innerHTML += '<img src="ui/ruby.png" class="trackRuby">';
-    if (mult) elem.innerHTML += `<div class="overlayChipText outlineText">×${mult}</div>`;
+    const effMult = chip?.mult ?? mult;
+    if (effMult != null) elem.innerHTML += `<div class="overlayChipText outlineText">×${effMult}</div>`;
 }
 
 function loadGameState() {
@@ -163,7 +164,7 @@ function placeChip(chip, track = game.track, isReal = true) {
     track.placed.push(chip);
     track.currIndex = Math.min(track.elements.length-2, track.currIndex+spaces);
     updateTrackGlow(track);
-    setElementToChip(track.currElem, chip, 0, track.currElem.ruby);
+    setElementToChip(track.currElem, chip, null, track.currElem.ruby);
     if (isReal) {
         console.log('real place');
         updateWhiteCount();
@@ -348,8 +349,9 @@ function showSelectorSplash({
     gold = 999,
     showGold = true,
     showTrack = false,
+    showDesc = false,
 }) {
-    selectedChips = [];
+    let selectedChips = [];
     const overlay = quickElement("div","splash-overlay");
     const box = quickElement("div","splash-box");
     const titleElem = quickElement("h2","splash-title",title);
@@ -366,16 +368,43 @@ function showSelectorSplash({
     confirmBtn.updateText = (numSelected) => { 
         if (numSelected == 0) confirmBtn.firstChild.textContent = "Skip";
         if (numSelected != 0) confirmBtn.firstChild.textContent = `${confirmText} ${numToText(numSelected)}`;
+        if (confirmText == "Return to Game") confirmBtn.firstChild.textContent = "Return to Game";
     };
+    confirmBtn.updateText(selectedChips.length);
 
-    track = quickElement('div','track');
+    // Preview track
+    const track = quickElement('div','track');
     track.style.margin = "0px -20px 18px";
     initializeTrack(track);
     game.track.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
+    function updatePreviewTrack() { // Update the preview track when a chip is selected/unselected
+        if (showTrack) {
+            initializeTrack(track); // Clear the track
+            game.track.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
+            selectedChips = selectedChips.filter(x => x !== chip);
+            selectedChips.forEach(c => placeChip(c, track)); // Re-place all the chips on the track
+        }
+    }
 
     if (showTrack) box.appendChild(track);
     if (title) box.appendChild(titleElem);
     if (message) box.appendChild(msgElem);
+
+    // Rules display
+    const DescContainer = quickElement("div","shop-desc")
+    const chipDescElem = quickChipElement({color:'blank'});
+    const chipDescText = quickElement("div","shop-desc-text","Click on a chip to see its description.");
+    DescContainer.appendChild(chipDescElem);
+    DescContainer.appendChild(chipDescText);
+    if (showDesc) box.appendChild(DescContainer);
+    function updateDescDisplay(chip) {
+        if (showDesc) {
+            setElementToChip(chipDescElem, chip);
+            let effValue = ( chip.value in game.chips.desc[chip.color] ? chip.value : 0 );
+            if (chip.color == 'purple') effValue = chip?.mult ?? 0;
+            chipDescText.innerHTML = game.chips.desc[chip.color][effValue];
+        }
+    }
     
     const chipList = quickElement("div","chip-selector");
     chipsToSelect.forEach(thisBuyRow => {
@@ -383,31 +412,29 @@ function showSelectorSplash({
 
         thisBuyRow.forEach(chip => {
             const itemDiv = quickElement("div","chip-selector-item");
-            const chipIcon = quickChipElement(chip);
-            itemDiv.appendChild(chipIcon);
+            const chipElem = quickChipElement(chip);
+            itemDiv.appendChild(chipElem);
             
-            const cost = game.chips.cost[chip.color][chip.value];
+            const cost = game.chips.cost[chip.color][chip.value ?? 1];
             const goldIcon = quickElement("div","trackGold",cost);
             if (showGold) itemDiv.appendChild(goldIcon)
 
             chipRow.appendChild(itemDiv);
             itemDiv.addEventListener("click", () => {
+                updateDescDisplay(chip);
                 if (selectedChips.includes(chip)) { // Unselect
-                    initializeTrack(track); // Clear the track
-                    game.track.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
                     selectedChips = selectedChips.filter(x => x !== chip);
-                    selectedChips.forEach(c => placeChip(c, track)); // Re-place all the chips on the track
                     itemDiv.classList.remove("selected");
+                    updatePreviewTrack();
                 } else { // Select if possible
                     if (maxSelect == 1) { // Swap single selection
                         if (cost > gold) {
                             flashRed(itemDiv);
                         } else {
                             chipList.querySelectorAll('.chip-selector-item').forEach(e => e.classList.remove('selected'));
-                            if (selectedChips.length) removeLastChip(track);
                             selectedChips = [chip];
                             itemDiv.classList.add("selected");
-                            placeChip(chip, track);
+                            updatePreviewTrack();
                         }
                     } else if ( (selectedChips.length >= maxSelect) // Limit amount
                         || (cost + selectedChips.reduce((sum, c) => sum + game.chips.cost[c.color][c.value], 0) > gold) // Need enough gold
@@ -416,7 +443,7 @@ function showSelectorSplash({
                     } else { // Add chip to selected
                         selectedChips.push(chip);
                         itemDiv.classList.add("selected");
-                        placeChip(chip, track);
+                        updatePreviewTrack();
                     }
                 }
                 confirmBtn.updateText(selectedChips.length);
@@ -484,9 +511,9 @@ function quickElement(type, className, innerHTML = '') {
     newElement.innerHTML = innerHTML;
     return newElement;
 }
-function quickChipElement(chip) {
+function quickChipElement(chip, mult=null, ruby=0) {
     const newElement = document.createElement("div");
-    setElementToChip(newElement, chip);
+    setElementToChip(newElement, chip, mult, ruby);
     return newElement;
 }
 function flashRed(element) {
@@ -783,12 +810,12 @@ function enterSummaryPhase() {
             // C:{ 1:6, 2:11, 4:21 }, // seven white
             // D:{ 1:4, 2:8, 4:14 },  // ruby swap
     const greenRow = quickElement("div","splash-buttons-row");
-    const greenElem = quickChipElement({ color:'green', value:0 });
+    const greenElem = quickChipElement({ color:'green' }, endOptions.green);
     greenRow.appendChild(greenElem);
     if (endOptions.green) {
         const buttonText = { A:"Receive Bonus!", B:"Receive Bonus!", D:'Pay 1 <img src="ui/ruby.png" class="textRuby"> ruby to move droplet?' };
         const greenBtn = createButton({
-            buttonText: buttonText[game.lobby.variant.purple],
+            buttonText: buttonText[game.lobby.variant.green],
             onClick: () => {
                 if (game.lobby.variant.green == "A") {
                     showConfirmSplash({
@@ -824,7 +851,7 @@ function enterSummaryPhase() {
         greenRow.appendChild(greenBtn);
     } else { // Show a dead button
         if (game.lobby.variant.green == 'C') {
-            greenElem.textContent = game.track.placed.filter((c,i) => c.color == 'green').length;
+            setElementToChip(greenElem,{ color:'green' },game.track.placed.filter((c,i) => c.color == 'green').length);
             greenRow.appendChild(createButton({ buttonColor:"grey",
                 buttonText: (game.chips.totalWhite==7) ? "Green chips doubled!" : "Need exactly 7 white" }));
         } else {
@@ -834,7 +861,7 @@ function enterSummaryPhase() {
     box.appendChild(greenRow);
     
     const purpleRow = quickElement("div","splash-buttons-row");
-    const purpleElem = quickChipElement({ color:'purple', value:0 });
+    const purpleElem = quickChipElement({ color:'purple' }, endOptions.purple);
     purpleRow.appendChild(purpleElem);
     if (endOptions.purple) {
         const buttonText = { A:"Receive Bonus!", B:`Trade in ${endOptions.purple} purple chips?`, D:"Upgrade a Chip!" };
@@ -901,7 +928,7 @@ function enterSummaryPhase() {
     box.appendChild(purpleRow);
     
     const blackRow = quickElement("div","splash-buttons-row");
-    const blackElem = quickChipElement({ color:'black', value:0 });
+    const blackElem = quickChipElement({ color:'black' }, endOptions.black);
     blackRow.appendChild(blackElem);
     if (endOptions.black) {
         const blackBtn = createButton({
@@ -950,6 +977,7 @@ function enterBuyPhase(gold = spaceValues[game.track.currIndex+1][0]) { // Enter
         holdToConfirm: true,
         chipsToSelect: chipBuyOrder,
         gold: gold,
+        showDesc: true,
         onConfirm: (selectedChips) => {
             selectedChips.forEach(thisChip => {
                 const chip = { color:thisChip.color, value:thisChip.value }; // Must be new object
@@ -1027,6 +1055,18 @@ function restartGame() {
     restartRound(1);
 }
 
+rulesBtn.addEventListener('click', () => showSelectorSplash({
+    title: "View Rules",
+    message: "",
+    cancelText: "",
+    confirmText: "Return to Game",
+    chipsToSelect: chipRulesOrder,
+    gold: 999,
+    maxSelect: 1,
+    showDesc: true,
+    onConfirm: () => {}
+}));
+
 // Button to open witch menu and activate witch effects ===========================
 witchBtn.addEventListener('click', showWitchMenu);
 function showWitchMenu() {
@@ -1059,6 +1099,7 @@ function showWitchMenu() {
             holdToConfirm: true,
             chipsToSelect: chipBuyOrder,
             maxSelect: 1,
+            showDesc: true,
             onConfirm: (selectedChips) => {
                 selectedChips.forEach(thisChip => {
                     const newChip = { color:thisChip.color, value:thisChip.value };
@@ -1134,14 +1175,14 @@ function openRatMenu() {
     box.appendChild(msgElem);
 
     const ratRow = quickElement("div","splash-buttons-row");
-    const chipIcon = quickChipElement({ color:'rat' });
-    let amount = game.player.rat.value;  setElementToChip(chipIcon, { color:'rat' }, amount);
+    const chipElem = quickChipElement({ color:'rat' });
+    let amount = game.player.rat.value;  setElementToChip(chipElem, { color:'rat' }, amount);
     const minusBtn = createButton({
         buttonText: "-",
         buttonColor: chipColors.red,
         onClick: () => {
             amount = Math.max(0, amount-1);
-            setElementToChip(chipIcon, { color:'rat' }, amount);
+            setElementToChip(chipElem, { color:'rat' }, amount);
         }
     });
     const plusBtn = createButton({
@@ -1149,10 +1190,10 @@ function openRatMenu() {
         buttonColor: chipColors.green,
         onClick: () => {
             amount = amount+1;
-            setElementToChip(chipIcon, { color:'rat' }, amount);
+            setElementToChip(chipElem, { color:'rat' }, amount);
         }
     });
-    ratRow.appendChild(minusBtn);  ratRow.appendChild(chipIcon);  ratRow.appendChild(plusBtn);
+    ratRow.appendChild(minusBtn);  ratRow.appendChild(chipElem);  ratRow.appendChild(plusBtn);
     msgElem.appendChild(ratRow);
 
     const btnRow = quickElement("div","splash-buttons-row");

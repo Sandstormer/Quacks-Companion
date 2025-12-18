@@ -2,6 +2,7 @@
 const mainContainer = document.getElementById('mainContainer');
 mainContainer.style.maxHeight = document.documentElement.clientHeight + 'px';
 const logBtn = document.getElementById('logBtn');
+const rulesBtn = document.getElementById('rulesBtn');
 const witchBtn = document.getElementById('witchBtn');
 const endBtn = document.getElementById('endBtn');
 const drawBtn = document.getElementById('drawBtn');
@@ -105,7 +106,7 @@ const allVariants = {
         },
         red:{
             A: {0: "If you've placed an orange chip, move this chip an extra space. If you've placed 3 orange chips, move an extra 2 spaces instead."},
-            B: {0: "Put this chip aside. At the end of the round, you can choose to place it, or save it for a later round."},
+            B: {0: "When you draw this chip, place it aside. At the end of the round, you can choose to place it, or save it for a later round."},
             C: {0: "If the previous placed chip was white, move this chip extra spaces according to that chip's value."},
             D: {0: "After you've placed a red chip, each white 1-chip is moved an additional space."},
         },
@@ -133,7 +134,7 @@ const allVariants = {
         yellow:{
             A: {0: "If the previous placed chip was white, put that white chip back into the bag."},
             B: {0: "The next chip placed is moved twice as many spaces."},
-            C: {0: "After you have placed one yellow chip, the white threshold is increased to 8. If you have 3 yellow chips, it increases to 9."},
+            C: {0: "After you have placed one yellow chip, the white threshold is increased to 8. If you have placed 3 yellow chips, it increases to 9."},
             D: {0: "If this is your 1st/2nd/3rd yellow chip placed, it is moved an extra 1/2/3 spaces."},
         },
         orange:{
@@ -190,5 +191,32 @@ const chipBuyOrder = [ // Order that the chips appear on the shop screen
         { color: 'orange', value: 1 },
         { color: 'black',  value: 1 },
         { color: 'purple', value: 1 },
+    ]
+];
+const chipRulesOrder = [ // Order that the chips appear on the rules screen
+    [
+        { color: 'green', value: 1 },
+        { color: 'green', value: 2 },
+        { color: 'green', value: 4 },
+    ],[
+        { color: 'red', value: 1 },
+        { color: 'red', value: 2 },
+        { color: 'red', value: 4 },
+    ],[
+        { color: 'blue', value: 1 },
+        { color: 'blue', value: 2 },
+        { color: 'blue', value: 4 },
+    ],[
+        { color: 'yellow', value: 1 },
+        { color: 'yellow', value: 2 },
+        { color: 'yellow', value: 4 },
+    ],[
+        { color: 'purple', mult: 1 },
+        { color: 'purple', mult: 2 },
+        { color: 'purple', mult: 3 },
+    ],[
+        { color: 'orange', value: 1 },
+        { color: 'black',  value: 1 },
+        { color: 'white', value: 1 },
     ]
 ];
