@@ -137,12 +137,8 @@ function removeChipFromBag(chip) {
     if (chip == undefined) return;
     game.chips.inBag = game.chips.inBag.filter(c => c != chip); // Remove chip from current bag
     if (chip.body) {
-        if (chip.color == 'white' && chip.value+game.chips.totalWhite > game.chips.totalWhiteMax) {
-            animateChipExplosion(chip.body);
-        } else {
-            Matter.Composite.remove(world, chip.body); // Remove physics chip from world
-            createShockwave(chip.body, 150, 0.03);
-        }
+        Matter.Composite.remove(world, chip.body); // Remove physics chip from world
+        createShockwave(chip.body, 150, 0.04);
     }
     if (chip.color == 'red' && game.lobby.variant.red == 'B') { redSaveForLater(chip); return; }
     writeToLog(`Placed ${chip.color} ${chip.value}-chip`);
@@ -262,16 +258,17 @@ function updateWhiteCount() {
     if (newTotal != game.chips.totalWhite) {
         game.chips.totalWhite = newTotal;
         whiteCounter.innerHTML = `${game.chips.totalWhite}/${game.chips.totalWhiteMax}`;
+        const odds = Math.ceil(game.chips.inBag.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + game.chips.totalWhite) > game.chips.totalWhiteMax), 0)/game.chips.inBag.length*100);
+        if (odds) whiteCloud.classList.add('cloud-vibrate'); else whiteCloud.classList.remove('cloud-vibrate');
         if (game.chips.totalWhite > game.chips.totalWhiteMax) {
-            writeToLog(`Pot exploded with ${game.chips.totalWhite} white chips!`,chipColors.red)
-            createBustForce();
+            writeToLog(`Pot exploded with ${game.chips.totalWhite} white chips!`,chipColors.red);
+            whiteCloud.classList = 'cloud-burst';
+            setTimeout(() => { createBustForce(); }, 1200); 
             drawBtn.innerHTML = 'BUST!';
         } else {
-            const odds = Math.ceil(game.chips.inBag.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + game.chips.totalWhite) > game.chips.totalWhiteMax), 0)/game.chips.inBag.length*100);
-            if (odds) whiteCloud.classList.add('cloud-vibrate');
             drawBtn.innerHTML = 'Draw Chip';
-            whiteCloud.classList.remove('cloud-pulse');  void whiteCloud.offsetWidth;
-            whiteCloud.classList.add('cloud-pulse');
+            whiteCloud.src = "ui/cloud.png";
+            whiteCloud.classList.remove('cloud-pulse');  void whiteCloud.offsetWidth;  whiteCloud.classList.add('cloud-pulse');
         };
     }
 }
@@ -675,12 +672,13 @@ function createShockwave(originBody, radius = 400, forceMagnitude = 0.04, fallOf
         }
     });
 }
-function createBustForce(forceMagnitude = 0.3) {
-    // shakeScreen();
+function createBustForce(forceMagnitude = 0.6) {
+    shakeScreen();
+    whiteCloud.src = "ui/cloud-bust.png";
     const bodies = Matter.Composite.allBodies(world);
-    // bodies.forEach(body => {
-    //     Matter.Body.applyForce(body, body.position, { x:0, y:forceMagnitude*(0.7+Math.random()*0.6) });
-    // });
+    bodies.forEach(body => {
+        Matter.Body.applyForce(body, body.position, { x:0, y:forceMagnitude*(0.7+Math.random()*0.6) });
+    });
 }
 function shakeScreen(duration = 500, intensity = 10) {
     const container = document.getElementById("mainContainer"); // Or the canvas parent
@@ -701,57 +699,6 @@ function shakeScreen(duration = 500, intensity = 10) {
     }
     requestAnimationFrame(animate);
 }
-/**
- * Makes a Matter.js chip grow and then explode.
- * @param {Matter.Body} chipBody - The physics body of the chip.
- * @param {number} growDuration - How long to scale up in ms.
- * @param {number} explosionForce - Max force to apply on explosion.
- */
-function animateChipExplosion(chipBody, growDuration = 1000, explosionForce = 0.05) {
-    const startTime = performance.now();
-    const startScale = chipBody.render.sprite.xScale; // current sprite scale
-    const endScale = startScale * 2;
-    function animate(time) {
-        const elapsed = time - startTime;
-        const t = Math.min(elapsed / growDuration, 1);
-
-        // Smooth scaling
-        const scale = startScale + (endScale - startScale) * Math.pow(t, 0.5);
-
-        // Update physics body
-        const factor = scale / (chipBody.render._lastScale || startScale);
-        Matter.Body.scale(chipBody, factor, factor);
-        chipBody.render._lastScale = scale;
-
-        // Update sprite scale for visual
-        if (chipBody.render.sprite) {
-            chipBody.render.sprite.xScale = scale;
-            chipBody.render.sprite.yScale = scale;
-        }
-
-        // Compute a small push
-        // const angle = Math.random() * Math.PI * 2;
-        // const magnitude = 1; // e.g., 0.5 - 2 depending on scale
-        // Matter.Body.applyForce(chipBody, chipBody.position, {
-        //     x: Math.cos(angle) * magnitude,
-        //     y: Math.sin(angle) * magnitude
-        // });
-
-        if (t < 1) {
-            // createShockwave(chipBody, 200, 0.05, false);
-            requestAnimationFrame(animate);
-        } else {
-            // Apply random explosion force
-            createShockwave(chipBody, 1000, 1.5);
-            shakeScreen();
-            // Fade out (if you want) and then remove
-            Matter.Composite.remove(engine.world, chipBody);
-        }
-    }
-
-    requestAnimationFrame(animate);
-}
-
 //////////////////// ^^^^^^^^^^^^^
 
 // Button to end round, buy chips, and restart round ===========================
@@ -1061,7 +1008,7 @@ function restartGame() {
     restartRound(1);
 }
 
-rulesBtn.addEventListener('click', () => showSelectorSplash({
+rulesBtn.addEventListener('click', () => showSelectorSplash({ // Show the rules screen
     title: "View Rules",
     message: "",
     cancelText: "",
@@ -1072,6 +1019,10 @@ rulesBtn.addEventListener('click', () => showSelectorSplash({
     showDesc: true,
     onConfirm: () => {}
 }));
+// witchBtn.addEventListener('click', showWitchMenu);
+function showVariantMenu() {
+
+}
 
 // Button to open witch menu and activate witch effects ===========================
 witchBtn.addEventListener('click', showWitchMenu);

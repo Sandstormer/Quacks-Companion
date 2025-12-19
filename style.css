@@ -209,11 +209,8 @@ button {
 @property --rot { syntax: "<number>"; inherits: false; initial-value: 0; }
 .cloud-vibrate { animation: vibrateAnim 700ms infinite; }
 .cloud-pulse { animation: animPulseOut 400ms ease-out; }
-.cloud-vibrate.cloud-pulse {
-  animation:
-    vibrateAnim 700ms infinite,
-    animPulseOut 400ms ease-out;
-}
+.cloud-vibrate.cloud-pulse { animation: vibrateAnim 700ms infinite, animPulseOut 400ms ease-out; }
+.cloud-burst { animation: animBurst 1200ms ease-out; }
 @keyframes vibrateAnim {
   0%   { --dy: 0px;  }
   5%   { --dy: -1px; }
@@ -229,6 +226,11 @@ button {
     0% { --scale: 1.5; }
     25% { --scale: 1.25; }
     100% { --scale: 1; }
+}
+@keyframes animBurst {
+    0% { --scale: 1.5; }
+    10% { --scale: 1.25; }
+    100% { --scale: 3; }
 }
 /* ===================== Lower Controls ===================== */
 .controlsLower {
