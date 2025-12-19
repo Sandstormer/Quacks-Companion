@@ -1,40 +1,31 @@
 // All game logic is in this script
 
 let game = { // All variables for the game state
-    lobby: {
-        variant: {}, // Which variants are selected for each color
-        seed: null,  // Seed encoding of chip variants, for joining a lobby
-        actionLog: [], // Text log of actions
-    },
-    round: {
-        count: 1, // Which round it is
-        prevBuy: { gold: 0, chips: [] }, // Amount of gold and chips purchased in previous shop phase
-    },
-    player: {
-        droplet: { color:'droplet', value:1 }, // Stats of the droplet, can be upgraded
-        rat: { color:'rat', value:2 },         // Stats of rat tails, set at the start of each round
-        isPotionFull: true, // If the potion is available
-    },
-    chips: {
-        owned: [...starterChips], // Chips in bag at start of game, added to in shop phase
-        inBag: [...starterChips], // Chips in bag at start of each round, chips removed as they are drawn
-        totalWhite: 0,    // Current total of white chips placed
-        totalWhiteMax: 7, // Maximum total of white chips without busting (usually 7)
-        redSaved: [], // List of Red B chips, to be placed at end of round, or saved until next round
-        cost: {}, // Chip costs of the selected variants: [color][value]
-        desc: {}, // Chip descriptions of the selected variants: [color][value]
-    },
-    track: document.getElementById('trackActual'),
-        // track.elements, track.currIndex, track.currElem, track.placed
+    chipVariants: {}, // Which variants are selected for each color
+    seed: null,    // Seed (unused)
+    actionLog: [], // Text log of actions
+    roundCount: 1, // Which round it is
+    prevBuy: { gold: 0, chips: [] }, // Amount of gold and chips purchased in previous shop phase
+    dropletStats: { color:'droplet', value:1 }, // Stats of the droplet, can be upgraded
+    ratStats: { color:'rat', value:2 },         // Stats of rat tails, set at the start of each round
+    isPotionFull: true, // If the potion is available
 };
-game.lobby.variant = { green:'C', red:'B', blue:'C', yellow:'C', orange:'A', black:'A', purple:'B', white:'A' };
-for (const color in game.lobby.variant) { // List the chip costs of only the selected variants
-    const variant = game.lobby.variant[color];
-    game.chips.cost[color] = allVariants.cost[color][variant];
-    game.chips.desc[color] = allVariants.desc[color][variant];
+let chipsOwned = [...starterChips]; // Chips in bag at start of game, added to in shop phase
+let chipsInBag = [...starterChips]; // Chips in bag at start of each round, chips removed as they are drawn
+let totalWhite = 0;    // Current total of white chips placed
+let totalWhiteMax = 7; // Maximum total of white chips without busting (usually 7)
+let redSaved = []; // List of Red B chips, to be placed at end of round, or saved until next round
+let chipCost = {}; // Chip costs of the selected variants: [color][value]
+let chipDesc = {}; // Chip descriptions of the selected variants: [color][value]
+game.chipVariants = { green:'C', red:'B', blue:'C', yellow:'C', orange:'A', black:'A', purple:'B', white:'A' };
+for (const color in game.chipVariants) { // List the chip costs of only the selected variants
+    const variant = game.chipVariants[color];
+    chipCost[color] = allVariants.cost[color][variant];
+    chipDesc[color] = allVariants.desc[color][variant];
 }
 
-function initializeTrack(track = game.track) {
+const trackActual = document.getElementById('trackActual') // The actual track, has attributes: { elements, currIndex, currElem, placed }
+function initializeTrack(track = trackActual) {
     track.innerHTML = '';
     track.elements = spaceValues.map((val,i) => { // Elements for board spaces
         const newSpace = document.createElement('div');
@@ -45,12 +36,12 @@ function initializeTrack(track = game.track) {
     track.currIndex = 0; // Index of the furthest space a chip is placed
     track.currElem = track.elements[0]; // Element of furthest chip space
     track.placed = []; // List of chips currently placed on the track
-    placeChip(game.player.droplet, track, false);
-    if (game.player.rat.value) {
-        placeChip(game.player.rat, track, false);
+    placeChip(game.dropletStats, track, false);
+    if (game.ratStats.value) {
+        placeChip(game.ratStats, track, false);
     }
 }
-function setElementToTrackSpace(elem = game.track.currElem) {
+function setElementToTrackSpace(elem = trackActual.currElem) {
     elem.className = 'trackSpace';
     const rubyElem = elem.ruby ? '<img src="ui/ruby.png" class="trackRuby">' : '';
     elem.innerHTML = `${rubyElem}<div class="trackGold">${elem.gold}</div><div class="trackVP">${elem.VP}</div>`;
@@ -67,16 +58,14 @@ function setElementToChip(elem, chip, mult=null, ruby=0) {
 }
 
 function loadGameState() {
-    game.lobby = loadFromStorage("game.lobby");
-    game.round.count = loadFromStorage("game.round.count");
-    game.player = loadFromStorage("game.player");
-    game.chips.owned = loadFromStorage("savedOwnedChips");
+    game = loadFromStorage("gameState");
+    chipsOwned = loadFromStorage("savedOwnedChips");
     restartRound();
     const savedPlacedChips = loadFromStorage("savedPlacedChips");
     savedPlacedChips.forEach((c,i) => {
-        const [chip] = game.chips.inBag.splice(game.chips.inBag.findIndex(chip => chip.color==c.color && chip.value==c.value), 1);
-        // placeChip(chip, game.track, (i==savedPlacedChips.length-1)); // set isReal to true on last chip
-        placeChip(chip, game.track, false);
+        const [chip] = chipsInBag.splice(chipsInBag.findIndex(chip => chip.color==c.color && chip.value==c.value), 1);
+        // placeChip(chip, trackActual, (i==savedPlacedChips.length-1)); // set isReal to true on last chip
+        placeChip(chip, trackActual, false);
     });
     updateWhiteCount();
 }
@@ -84,13 +73,11 @@ function loadFromStorage(key) {
   if (localStorage.getItem(key) !== null) return JSON.parse(localStorage.getItem(key));
 }
 function saveGameState() { // Make sure blue peeking is the same after reload!!!!!!!!! and delayed reds!
-    localStorage.setItem("game.lobby",JSON.stringify(game.lobby));
-    localStorage.setItem("game.round.count",game.round.count);
-    localStorage.setItem("game.player",JSON.stringify(game.player));
+    localStorage.setItem("gameState",JSON.stringify(game));
     // Save chips that are owned or placed, but only the color and value
-    const savedOwnedChips = game.chips.owned.map(c => { return {color:c.color,value:c.value}; });
+    const savedOwnedChips = chipsOwned.map(c => { return {color:c.color,value:c.value}; });
     localStorage.setItem("savedOwnedChips",JSON.stringify(savedOwnedChips));
-    const savedPlacedChips = game.track.placed.filter(c => !['rat','droplet'].includes(c.color)).map(c => { return {color:c.color,value:c.value}; });
+    const savedPlacedChips = trackActual.placed.filter(c => !['rat','droplet'].includes(c.color)).map(c => { return {color:c.color,value:c.value}; });
     localStorage.setItem("savedPlacedChips",JSON.stringify(savedPlacedChips));
     // game = { // All variables for the game state
     //     lobby: {
@@ -128,34 +115,34 @@ function regularPull() {
     placeChip(chip);
 }
 function grabChipFromBag(multiDraw = 1) {
-    if (game.chips.inBag.length === 0 || game.chips.totalWhite > game.chips.totalWhiteMax || game.track.currIndex == game.track.elements.length-2) return [];
-    const arr = [...game.chips.inBag.keys()]; // [0,1,2,...]
+    if (chipsInBag.length === 0 || totalWhite > totalWhiteMax || trackActual.currIndex == trackActual.elements.length-2) return [];
+    const arr = [...chipsInBag.keys()]; // [0,1,2,...]
     arr.forEach((_, i) => { const j = Math.floor(Math.random() * (i + 1));  [arr[i], arr[j]] = [arr[j], arr[i]] }); // Fisher-Yates shuffle
-    return arr.slice(0, multiDraw).map(i => game.chips.inBag[i]); // Return array of chips
+    return arr.slice(0, multiDraw).map(i => chipsInBag[i]); // Return array of chips
 }
 function removeChipFromBag(chip) {
     if (chip == undefined) return;
-    game.chips.inBag = game.chips.inBag.filter(c => c != chip); // Remove chip from current bag
+    chipsInBag = chipsInBag.filter(c => c != chip); // Remove chip from current bag
     if (chip.body) {
         Matter.Composite.remove(world, chip.body); // Remove physics chip from world
         createShockwave(chip.body, 150, 0.04);
     }
-    if (chip.color == 'red' && game.lobby.variant.red == 'B') { redSaveForLater(chip); return; }
+    if (chip.color == 'red' && game.chipVariants.red == 'B') { redSaveForLater(chip); return; }
     writeToLog(`Placed ${chip.color} ${chip.value}-chip`);
     return chip;
 }
-function placeChip(chip, track = game.track, isReal = true) {
+function placeChip(chip, track = trackActual, isReal = true) {
     if (chip == undefined) return;
-    if (track != game.track) isReal = false;
+    if (track != trackActual) isReal = false;
     if (track.currIndex == track.elements.length-2) return;
     let spaces = chip.value;  const prevChip = track.placed[track.placed.length-1];
     // Do chip effects that increase the number of spaces
-    if (chip.color == 'yellow' && game.lobby.variant.yellow == 'A' && prevChip?.color == 'white' && isReal) yellowReturnWhite();
-    if (game.lobby.variant.yellow == 'C' && prevChip?.color == 'yellow') spaces *= 2;
-    if (chip.color == 'red' && game.lobby.variant.red == 'A' && track.placed.filter(c => c.color=='orange').length > 0) spaces += 1;
-    if (chip.color == 'red' && game.lobby.variant.red == 'A' && track.placed.filter(c => c.color=='orange').length > 2) spaces += 1;
-    if (chip.color == 'red' && game.lobby.variant.red == 'C' && prevChip?.color == 'white') spaces += prevChip?.value;
-    if (chip.color == 'white' && game.lobby.variant.red == 'D' && chip.value == 1 && track.placed.filter(c => c.color == 'red').length) spaces += 1;
+    if (chip.color == 'yellow' && game.chipVariants.yellow == 'A' && prevChip?.color == 'white' && isReal) yellowReturnWhite();
+    if (game.chipVariants.yellow == 'C' && prevChip?.color == 'yellow') spaces *= 2;
+    if (chip.color == 'red' && game.chipVariants.red == 'A' && track.placed.filter(c => c.color=='orange').length > 0) spaces += 1;
+    if (chip.color == 'red' && game.chipVariants.red == 'A' && track.placed.filter(c => c.color=='orange').length > 2) spaces += 1;
+    if (chip.color == 'red' && game.chipVariants.red == 'C' && prevChip?.color == 'white') spaces += prevChip?.value;
+    if (chip.color == 'white' && game.chipVariants.red == 'D' && chip.value == 1 && track.placed.filter(c => c.color == 'red').length) spaces += 1;
     // Render the chip onto the track space
     track.placed.push(chip);
     track.currIndex = Math.min(track.elements.length-2, track.currIndex+spaces);
@@ -167,12 +154,12 @@ function placeChip(chip, track = game.track, isReal = true) {
         saveGameState();
     }
     // Do chips effects that resolve after the chip is placed
-    if (chip.color == 'blue' && game.lobby.variant.blue == 'C' && track.currElem.ruby && isReal) awardVPR(0,1,chip);
-    if (chip.color == 'blue' && game.lobby.variant.blue == 'D' && track.currElem.ruby && isReal) awardVPR(chip.value,0,chip);
-    if (chip.color == 'purple' && game.lobby.variant.purple == 'C' && track.currElem.gold >= 10 && isReal) awardVPR(Math.floor(track.currElem.gold/10),0,chip);
-    if (chip.color == 'blue' && game.lobby.variant.blue == 'A' && isReal) bluePeeking(chip.value);
+    if (chip.color == 'blue' && game.chipVariants.blue == 'C' && track.currElem.ruby && isReal) awardVPR(0,1,chip);
+    if (chip.color == 'blue' && game.chipVariants.blue == 'D' && track.currElem.ruby && isReal) awardVPR(chip.value,0,chip);
+    if (chip.color == 'purple' && game.chipVariants.purple == 'C' && track.currElem.gold >= 10 && isReal) awardVPR(Math.floor(track.currElem.gold/10),0,chip);
+    if (chip.color == 'blue' && game.chipVariants.blue == 'A' && isReal) bluePeeking(chip.value);
 }
-function updateTrackGlow(track = game.track) {
+function updateTrackGlow(track = trackActual) {
     track.currElem = track.elements[track.currIndex];
     track.elements.forEach(e => e.classList.remove("track-glow"));
     track.elements[track.currIndex+1].classList.add("track-glow");
@@ -193,14 +180,14 @@ function bluePeeking(value) { // Peek at multiple chips, and you may place one
     });
 }
 function yellowReturnWhite() {
-    setElementToTrackSpace(game.track.currElem);
-    const [chip] = game.track.placed.splice(game.track.placed.length-2,1);
+    setElementToTrackSpace(trackActual.currElem);
+    const [chip] = trackActual.placed.splice(trackActual.placed.length-2,1);
     writeToLog(`Yellow effect returned ${chip.color} ${chip.value}-chip`, chipColors.yellow);
     chip.body = spawnChip(chip.color, chip.value)
-    game.chips.inBag.push(chip);
+    chipsInBag.push(chip);
 }
 function redSaveForLater(chip) {
-    game.chips.redSaved.push(chip);
+    redSaved.push(chip);
     const newChip = quickChipElement(chip);
     newChip.style.margin = '5px auto';
     showConfirmSplash({
@@ -226,9 +213,9 @@ function awardVPR(VP = 0, ruby = 0, chip = null) {
 }
 
 function usePotion() {
-    if ( game.track.placed.length && game.player.isPotionFull && game.chips.totalWhite <= game.chips.totalWhiteMax
-         && !['rat','droplet'].includes(game.track.placed[game.track.placed.length-1].color) ) {
-        const lastChip = quickChipElement(game.track.placed[game.track.placed.length-1]);
+    if ( trackActual.placed.length && game.isPotionFull && totalWhite <= totalWhiteMax
+         && !['rat','droplet'].includes(trackActual.placed[trackActual.placed.length-1].color) ) {
+        const lastChip = quickChipElement(trackActual.placed[trackActual.placed.length-1]);
         lastChip.style.margin = '5px auto';
         const textChip = lastChip.outerHTML;
         showConfirmSplash({
@@ -237,31 +224,31 @@ function usePotion() {
             cancelText: "Go Back",
             confirmText: "Use Potion",
             onConfirm: () => { // Put chip back into bag, and reset the track space
-                const chip = removeLastChip(game.track);
+                const chip = removeLastChip(trackActual);
                 chip.body = spawnChip(chip.color, chip.value)
-                game.chips.inBag.push(chip);
+                chipsInBag.push(chip);
                 writeToLog(`Used potion on ${chip.color} ${chip.value}-chip`);
                 updateWhiteCount();
-                game.player.isPotionFull = false;
+                game.isPotionFull = false;
             },
         });
     }
 }
-function removeLastChip(track = game.track) {
+function removeLastChip(track = trackActual) {
     setElementToTrackSpace(track.currElem);
     track.currIndex = track.elements.map(e => e.className).lastIndexOf("chip");
     updateTrackGlow(track);
     return track.placed.pop();
 }
 function updateWhiteCount() {
-    const newTotal = game.track.placed.filter(c => c.color === 'white').reduce((sum, c) => sum + c.value, 0);
-    if (newTotal != game.chips.totalWhite) {
-        game.chips.totalWhite = newTotal;
-        whiteCounter.innerHTML = `${game.chips.totalWhite}/${game.chips.totalWhiteMax}`;
-        const odds = Math.ceil(game.chips.inBag.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + game.chips.totalWhite) > game.chips.totalWhiteMax), 0)/game.chips.inBag.length*100);
+    const newTotal = trackActual.placed.filter(c => c.color === 'white').reduce((sum, c) => sum + c.value, 0);
+    if (newTotal != totalWhite) {
+        totalWhite = newTotal;
+        whiteCounter.innerHTML = `${totalWhite}/${totalWhiteMax}`;
+        const odds = Math.ceil(chipsInBag.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + totalWhite) > totalWhiteMax), 0)/chipsInBag.length*100);
         if (odds) whiteCloud.classList.add('cloud-vibrate'); else whiteCloud.classList.remove('cloud-vibrate');
-        if (game.chips.totalWhite > game.chips.totalWhiteMax) {
-            writeToLog(`Pot exploded with ${game.chips.totalWhite} white chips!`,chipColors.red);
+        if (totalWhite > totalWhiteMax) {
+            writeToLog(`Pot exploded with ${totalWhite} white chips!`,chipColors.red);
             whiteCloud.classList = 'cloud-burst';
             setTimeout(() => { createBustForce(); }, 1200); 
             drawBtn.innerHTML = 'BUST!';
@@ -296,7 +283,7 @@ function writeToLog(actionString, color = "white") {
     const now = new Date();
     let timeString = now.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
     timeString = timeString.replace(/\s?[AP]M/i, ''); // remove AM/PM
-    game.lobby.actionLog.push([timeString,actionString,color]);
+    game.actionLog.push([timeString,actionString,color]);
 }
 function showConfirmSplash({
     title = "",
@@ -373,11 +360,11 @@ function showSelectorSplash({
     const track = quickElement('div','track');
     track.style.margin = "0px -20px 18px";
     initializeTrack(track);
-    game.track.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
+    trackActual.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
     function updatePreviewTrack(chipToRemove = null) { // Update the preview track when a chip is selected/unselected
         if (showTrack) {
             initializeTrack(track); // Clear the track
-            game.track.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
+            trackActual.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
             selectedChips = selectedChips.filter(x => x !== chipToRemove);
             selectedChips.forEach(c => placeChip(c, track)); // Re-place all the chips on the track
             console.log(selectedChips);
@@ -398,9 +385,9 @@ function showSelectorSplash({
     function updateDescDisplay(chip) {
         if (showDesc) {
             setElementToChip(chipDescElem, chip);
-            let effValue = ( chip.value in game.chips.desc[chip.color] ? chip.value : 0 );
+            let effValue = ( chip.value in chipDesc[chip.color] ? chip.value : 0 );
             if (chip.color == 'purple') effValue = chip?.mult ?? 0;
-            chipDescText.innerHTML = game.chips.desc[chip.color][effValue];
+            chipDescText.innerHTML = chipDesc[chip.color][effValue];
         }
     }
     
@@ -413,7 +400,7 @@ function showSelectorSplash({
             const chipElem = quickChipElement(chip);
             itemDiv.appendChild(chipElem);
             
-            const cost = game.chips.cost[chip.color][chip.value ?? 1];
+            const cost = chipCost[chip.color][chip.value ?? 1];
             const goldIcon = quickElement("div","trackGold",cost);
             if (showGold) itemDiv.appendChild(goldIcon)
 
@@ -435,7 +422,7 @@ function showSelectorSplash({
                             updatePreviewTrack();
                         }
                     } else if ( (selectedChips.length >= maxSelect) // Limit amount
-                        || (cost + selectedChips.reduce((sum, c) => sum + game.chips.cost[c.color][c.value], 0) > gold) // Need enough gold
+                        || (cost + selectedChips.reduce((sum, c) => sum + chipCost[c.color][c.value], 0) > gold) // Need enough gold
                         || (selectedChips.some(c => c.color == chip.color) && maxSelect == 2) ) { // Can't buy same color
                             flashRed(itemDiv);
                     } else { // Add chip to selected
@@ -626,7 +613,7 @@ function addPhysicsChips(chips) {
     const accel = 0.92;
     chips.forEach(chip => {
         setTimeout(() => { // Only spawn if not already drawn from bag
-            if (game.chips.inBag.includes(chip)) chip.body = spawnChip(chip.color, chip.value); 
+            if (chipsInBag.includes(chip)) chip.body = spawnChip(chip.color, chip.value); 
         }, cumulative );
         delay *= accel;
         cumulative += delay;
@@ -716,7 +703,7 @@ endBtn.addEventListener('click', () => // Initial confirmation to end round
 // Do greens that need exactly 7 white
 // Place any red chips (variant B) that were saved
 function placeSavedReds() {
-    if (game.lobby.variant.red != 'B' || game.chips.redSaved.length == 0) {
+    if (game.chipVariants.red != 'B' || redSaved.length == 0) {
         enterSummaryPhase()
     } else {
         writeToLog(`Placing saved red chips`, chipColors.red);
@@ -725,13 +712,13 @@ function placeSavedReds() {
         message: "You may place all these chips",
         confirmText: "Place",
         holdToConfirm: false,
-        chipsToSelect: [game.chips.redSaved],
+        chipsToSelect: [redSaved],
         maxSelect: 99,
         showGold: false,
         showTrack: true,
         onConfirm: (selectedChips) => {
             selectedChips.forEach(c => placeChip(c)) // Place selected chips
-            game.chips.redSaved = game.chips.redSaved.filter(c => !selectedChips.includes(c));
+            redSaved = redSaved.filter(c => !selectedChips.includes(c));
             enterSummaryPhase()
         }
     });
@@ -748,9 +735,9 @@ function enterSummaryPhase() {
     box.appendChild(msgElem);
 
     let endOptions = {
-        green: game.track.placed.filter((c,i) => c.color == 'green' && i > game.track.placed.length-3 && game.lobby.variant.green != 'C').length,
-        purple: Math.min(3, game.track.placed.filter((c) => c.color == 'purple' && game.lobby.variant.purple != 'C').length),
-        black: game.track.placed.filter((c) => c.color == 'black').length
+        green: trackActual.placed.filter((c,i) => c.color == 'green' && i > trackActual.placed.length-3 && game.chipVariants.green != 'C').length,
+        purple: Math.min(3, trackActual.placed.filter((c) => c.color == 'purple' && game.chipVariants.purple != 'C').length),
+        black: trackActual.placed.filter((c) => c.color == 'black').length
     }
 
     function disableButton(button, row) {
@@ -768,23 +755,23 @@ function enterSummaryPhase() {
     if (endOptions.green) {
         const buttonText = { A:"Receive Bonus!", B:"Receive Bonus!", D:'Pay 1 <img src="ui/ruby.png" class="textRuby"> ruby to move droplet?' };
         const greenBtn = createButton({
-            buttonText: buttonText[game.lobby.variant.green],
+            buttonText: buttonText[game.chipVariants.green],
             onClick: () => {
-                if (game.lobby.variant.green == "A") {
+                if (game.chipVariants.green == "A") {
                     showConfirmSplash({
                         message: "You get rubies",
                         confirmText: "",
                         cancelText: "Ok"
                     });
                     endOptions.green = 0;  disableButton(greenBtn,greenRow);
-                } else if (game.lobby.variant.green == "B") {
+                } else if (game.chipVariants.green == "B") {
                     showConfirmSplash({
                         message: "You get free chip",
                         confirmText: "",
                         cancelText: "Ok"
                     });
                     endOptions.green = 0;  disableButton(greenBtn,greenRow);
-                } else if (game.lobby.variant.green == "D") {
+                } else if (game.chipVariants.green == "D") {
                     showConfirmSplash({
                         message: "Your droplet has been moved.",
                         cancelText: "Go back",
@@ -792,7 +779,7 @@ function enterSummaryPhase() {
                         holdToConfirm: true,
                         onConfirm: () => {
                             endOptions.green -= 1;
-                            game.player.droplet.value += 1;
+                            game.dropletStats.value += 1;
                             if (endOptions.green == 1) greenBtn.firstChild.textContent = "Pay another ruby to move droplet again?";
                             if (endOptions.green == 0) disableButton(greenBtn,greenRow)
                         }
@@ -803,10 +790,10 @@ function enterSummaryPhase() {
         });
         greenRow.appendChild(greenBtn);
     } else { // Show a dead button
-        if (game.lobby.variant.green == 'C') {
-            setElementToChip(greenElem,{ color:'green' },game.track.placed.filter((c,i) => c.color == 'green').length);
+        if (game.chipVariants.green == 'C') {
+            setElementToChip(greenElem,{ color:'green' },trackActual.placed.filter((c,i) => c.color == 'green').length);
             greenRow.appendChild(createButton({ buttonColor:"grey",
-                buttonText: (game.chips.totalWhite==7) ? "Green chips doubled!" : "Need exactly 7 white" }));
+                buttonText: (totalWhite==7) ? "Green chips doubled!" : "Need exactly 7 white" }));
         } else {
             greenRow.appendChild(createButton({ buttonText:"No green chips", buttonColor:"grey" }));
         }
@@ -819,10 +806,10 @@ function enterSummaryPhase() {
     if (endOptions.purple) {
         const buttonText = { A:"Receive Bonus!", B:`Trade in ${endOptions.purple} purple chips?`, D:"Upgrade a Chip!" };
         const purpleBtn = createButton({
-            buttonText: buttonText[game.lobby.variant.purple],
+            buttonText: buttonText[game.chipVariants.purple],
             onClick: () => {
-                if (game.lobby.variant.purple == "A") {
-                    if (endOptions.purple == 3) game.player.droplet.value += 1;
+                if (game.chipVariants.purple == "A") {
+                    if (endOptions.purple == 3) game.dropletStats.value += 1;
                     endOptions.purple = 0;  disableButton(purpleBtn, purpleRow);
                     showConfirmSplash({
                         message: ( endOptions.purple == 1 ? "You get 1 victory point!" : 
@@ -831,7 +818,7 @@ function enterSummaryPhase() {
                         confirmText: "",
                         cancelText: "Ok"
                     });
-                } else if (game.lobby.variant.purple == "B") {
+                } else if (game.chipVariants.purple == "B") {
                     showConfirmSplash({
                         message: ( endOptions.purple == 1 ? "Exchange 1 purple chip for 1 victory point, a ruby, and a black 1-chip?" : 
                                  ( endOptions.purple == 2 ? "Exchange 2 purple chips for 3 victory points, a droplet upgrade, a green 1-chip, and a blue 2-chip?" : 
@@ -841,9 +828,9 @@ function enterSummaryPhase() {
                         holdToConfirm: true,
                         onConfirm: () => {
                             // Remove purple chips and grant the reward
-                            if (endOptions.purple == 1) game.chips.owned.push({color:"black", value:1});
-                            if (endOptions.purple == 2) { game.player.droplet.value += 1; game.chips.owned.push({color:"green", value:1}); game.chips.owned.push({color:"blue", value:2}); }
-                            if (endOptions.purple == 3) { game.player.droplet.value += 2; game.chips.owned.push({color:"yellow", value:4}); }
+                            if (endOptions.purple == 1) chipsOwned.push({color:"black", value:1});
+                            if (endOptions.purple == 2) { game.dropletStats.value += 1; chipsOwned.push({color:"green", value:1}); chipsOwned.push({color:"blue", value:2}); }
+                            if (endOptions.purple == 3) { game.dropletStats.value += 2; chipsOwned.push({color:"yellow", value:4}); }
                             showConfirmSplash({
                                 message: ( endOptions.purple == 1 ? "You get 1 victory point and a ruby!<br><br>A black 1-chip is added to your bag." : 
                                     ( endOptions.purple == 2 ? "You get 3 victory points!<br><br>Your droplet has been upgraded!<br>A green 1-chip and a blue 2-chip are added to your bag." : 
@@ -851,17 +838,17 @@ function enterSummaryPhase() {
                                         cancelText: "Ok",
                                         confirmText: ""
                                     });
-                            while (endOptions.purple) { endOptions.purple -= 1;  game.chips.owned.splice(game.chips.owned.findIndex(c => c.color === 'purple'), 1); }
+                            while (endOptions.purple) { endOptions.purple -= 1;  chipsOwned.splice(chipsOwned.findIndex(c => c.color === 'purple'), 1); }
                             disableButton(purpleBtn, purpleRow);
                         }
                     });
-                } else if (game.lobby.variant.purple == "D") {
+                } else if (game.chipVariants.purple == "D") {
                     showSelectorSplash({
                         title: "Upgrade Chip",
                         message: `You may upgrade a chip from ${endOptions.purple==2?2:1} to ${endOptions.purple==1?2:4}`,
                         confirmText: "Upgrade",
                         holdToConfirm: false,
-                        chipsToSelect: [game.chips.owned.filter(c => ['red','blue','yellow','green'].includes(c.color) && c.value<(endOptions.purple==1?2:4))],
+                        chipsToSelect: [chipsOwned.filter(c => ['red','blue','yellow','green'].includes(c.color) && c.value<(endOptions.purple==1?2:4))],
                         maxSelect: 1,
                         showGold: false,
                         onConfirm: (selectedChips) => { if (selectedChips.length) {
@@ -887,7 +874,7 @@ function enterSummaryPhase() {
         const blackBtn = createButton({
             buttonText: "More than one player next to you?",
             onClick: () => {
-                game.player.droplet.value += 1;
+                game.dropletStats.value += 1;
                 showConfirmSplash({
                     message: "Your droplet has been moved.<br><br>If you have more black chips than both players next to you, take a ruby as well.",
                     confirmText: "",
@@ -919,9 +906,9 @@ function enterSummaryPhase() {
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 }
-function enterBuyPhase(gold = spaceValues[game.track.currIndex+1][0]) { // Enter the buy phase to buy 2 new chips
+function enterBuyPhase(gold = spaceValues[trackActual.currIndex+1][0]) { // Enter the buy phase to buy 2 new chips
     writeToLog(`Ended round`);
-    game.round.prevBuy.gold = gold;  game.round.prevBuy.chips = [];
+    game.prevBuy.gold = gold;  game.prevBuy.chips = [];
     showSelectorSplash({
         title: "End of Round",
         message: `Spend up to <span class="textGold">${gold}</span> gold on 2 chips`,
@@ -933,21 +920,20 @@ function enterBuyPhase(gold = spaceValues[game.track.currIndex+1][0]) { // Enter
         showDesc: true,
         onConfirm: (selectedChips) => {
             selectedChips.forEach(thisChip => {
-                const chip = { color:thisChip.color, value:thisChip.value }; // Must be new object
-                game.chips.owned.push(chip);
-                game.round.prevBuy.chips.push(chip);
+                chipsOwned.push({ color:thisChip.color, value:thisChip.value }); // Must be new object
+                game.prevBuy.chips.push({ color:thisChip.color, value:thisChip.value });
                 writeToLog(`Bought ${thisChip.color} ${thisChip.value}-chip`, 'green');
             });
             restartRound();
         }
     });
 }
-function restartRound(round = game.round.count) {
+function restartRound(round = game.roundCount) {
     // Start the round with owned chips, except reds which were saved for the next round
     // Restarting this round makes the red chips stay removed...
-    game.chips.inBag = [...game.chips.owned].filter(c => !game.chips.redSaved.includes(c));
-    game.track.placed = [];
-    game.round.count = round;
+    chipsInBag = [...chipsOwned].filter(c => !redSaved.includes(c));
+    trackActual.placed = [];
+    game.roundCount = round;
     updateWhiteCount();
     initializeTrack();
     initializePhysics();
@@ -965,7 +951,7 @@ function initializePhysics() {
     Matter.Composite.add(world, walls);
     gyro.lockout = true; 
     setTimeout(() => gyro.lockout = false, 2500 );
-    addPhysicsChips(game.chips.inBag);
+    addPhysicsChips(chipsInBag);
     Matter.Events.on(engine, "afterUpdate", () => {
         for (const wall of walls) {
             wall.position.x = Math.round(wall.position.x);
@@ -980,17 +966,17 @@ function initializePhysics() {
 function restartGame() {
     game = { // All variables for the game state
         lobby: {
-            variant: {}, // Which variants are selected for each color
+            chipVariants: {}, // Which variants are selected for each color
             seed: null,  // Seed encoding of chip variants, for joining a lobby
             actionLog: [], // Text log of actions
         },
         round: {
-            count: 1, // Which round it is
+            roundCount: 1, // Which round it is
             prevBuy: { gold: 0, chips: [] }, // Amount of gold and chips purchased in previous shop phase
         },
         player: {
-            droplet: { color:'droplet', value:1 }, // Stats of the droplet, can be upgraded
-            rat: { color:'rat', value:2 },         // Stats of rat tails, set at the start of each round
+            dropletStats: { color:'droplet', value:1 }, // Stats of the droplet, can be upgraded
+            ratStats: { color:'rat', value:2 },         // Stats of rat tails, set at the start of each round
             isPotionFull: true, // If the potion is available
         },
         chips: {
@@ -1040,9 +1026,9 @@ function showWitchMenu() {
         buttonColor: chipColors.blue,
         onClick: () => {
             writeToLog(`Used witch effect to re-do last shop phase`, 'pink');
-            game.round.prevBuy.chips.forEach(chip => game.chips.owned.splice(game.chips.owned.findIndex(c => c.color === chip.color && c.value === chip.value), 1));
+            game.prevBuy.chips.forEach(chip => chipsOwned.splice(chipsOwned.findIndex(c => c.color === chip.color && c.value === chip.value), 1));
             document.body.removeChild(overlay);
-            enterBuyPhase(game.round.prevBuy.gold);
+            enterBuyPhase(game.prevBuy.gold);
         }
     });
     witchContainer.appendChild(redoButton);
@@ -1061,8 +1047,8 @@ function showWitchMenu() {
             onConfirm: (selectedChips) => {
                 selectedChips.forEach(thisChip => {
                     const newChip = { color:thisChip.color, value:thisChip.value };
-                    game.chips.owned.push(newChip);
-                    game.chips.inBag.push(newChip);
+                    chipsOwned.push(newChip);
+                    chipsInBag.push(newChip);
                     addPhysicsChips([newChip]);
                     writeToLog(`Used witch effect to steal ${thisChip.color} ${thisChip.value}-chip`, 'pink');
                 });
@@ -1100,6 +1086,34 @@ function showWitchMenu() {
     });
     witchContainer.appendChild(peekRow);
 
+    const restartRoundButton = createButton({
+        buttonText: "Restart Round",
+        buttonColor: chipColors.blue,
+        onClick: () => showConfirmSplash({
+            title: "Restart Round?",
+            message: "You aren't normally supposed to do this, except for a witch card.",
+            cancelText: "Cancel",
+            confirmText: "Restart Round",
+            holdToConfirm: true,
+            onConfirm: () => { restartRound(); document.body.removeChild(overlay); }
+        })
+    });
+    witchContainer.appendChild(restartRoundButton);
+
+    const restartGameButton = createButton({
+        buttonText: "Restart Game",
+        buttonColor: chipColors.blue,
+        onClick: () => showConfirmSplash({
+            title: "Restart Entire Game?",
+            message: "Delete everything from this game, and start a new game?",
+            cancelText: "Cancel",
+            confirmText: "Start New Game",
+            holdToConfirm: true,
+            onConfirm: () => { restartGame(); document.body.removeChild(overlay); }
+        })
+    });
+    witchContainer.appendChild(restartGameButton);
+
     const btnRow = quickElement("div","splash-buttons-row");
     const cancelBtn = createButton({
         buttonText: "Return to game",
@@ -1115,9 +1129,9 @@ function showWitchMenu() {
 }
 
 // Button to expand board and open rat menu ===========================
-game.track.addEventListener('click', clickOnTrack);
+trackActual.addEventListener('click', clickOnTrack);
 function clickOnTrack() {
-    if (game.track.placed.length && !['rat','droplet'].includes(game.track.placed[game.track.placed.length-1].color)) {
+    if (trackActual.placed.length && !['rat','droplet'].includes(trackActual.placed[trackActual.placed.length-1].color)) {
         expandBoard(); // If actual chips have been drawn, expand the board
     } else { 
         openRatMenu(); // If no chips drawn, show the rat menu
@@ -1136,7 +1150,7 @@ function openRatMenu() {
 
     const ratRow = quickElement("div","splash-buttons-row");
     const chipElem = quickChipElement({ color:'rat' });
-    let amount = game.player.rat.value;  setElementToChip(chipElem, { color:'rat' }, amount);
+    let amount = game.ratStats.value;  setElementToChip(chipElem, { color:'rat' }, amount);
     const minusBtn = createButton({
         buttonText: "-",
         buttonColor: chipColors.red,
@@ -1167,7 +1181,7 @@ function openRatMenu() {
         buttonColor: chipColors.orange,
         onClick: () => {
             document.body.removeChild(overlay);
-            game.player.rat.value = amount;
+            game.ratStats.value = amount;
             initializeTrack(); // Replace track with new rat tails
         }
     });
@@ -1186,7 +1200,7 @@ potionBtn.addEventListener('click', usePotion);
 logBtn.addEventListener('click', () => 
     showConfirmSplash({ // Show the log
         title: "Action Log:",
-        message: [...game.lobby.actionLog,['','End of log']].map(a => `<div class="log-row"><div>${a[0]}</div><div style="color:${a[2]};">${a[1]}</div></div>`).join(''),
+        message: [...game.actionLog,['','End of log']].map(a => `<div class="log-row"><div>${a[0]}</div><div style="color:${a[2]};">${a[1]}</div></div>`).join(''),
         cancelText: "Return to game",
         confirmText: "",
         holdToConfirm: false
