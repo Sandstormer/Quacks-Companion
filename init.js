@@ -9,6 +9,7 @@ const drawBtn = document.getElementById('drawBtn');
 const potionBtn = document.getElementById('potionBtn');
 const whiteCounter = document.getElementById('whiteCounter');
 const whiteCloud = document.getElementById('whiteCloud');
+const trackActual = document.getElementById('trackActual') // The actual track. Attributes: { elements, currIndex, currElem, placed }
 
 // ========== Chip Information ==========
 const starterChips = [
@@ -22,30 +23,10 @@ const starterChips = [
     { color: 'green', value: 1 },
     { color: 'orange', value: 1 },
 
-    // { color: 'white', value: 3 },
-    // { color: 'yellow', value: 1 },
-    // { color: 'yellow', value: 2 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 4 },
-    // { color: 'blue', value: 4 },
     { color: 'blue', value: 4 },
     { color: 'blue', value: 4 },
     { color: 'red', value: 4 },
     { color: 'red', value: 4 },
-    // { color: 'red', value: 4 },
-    // { color: 'red', value: 4 },
-    // { color: 'red', value: 4 },
-    // { color: 'red', value: 4 },
-    // { color: 'red', value: 4 },
-    // { color: 'red', value: 4 },
 ];
 const spaceValues = [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0,1],[6,1],[7,1],[8,1],[9,1,1],[10,2],[11,2],[12,2],[13,2,1],[14,3],[15,3],[15,3,1],[16,3],[16,4],[17,4],[17,4,1],[18,4],[18,5],[19,5],[19,5,1],[20,5],[20,6],[21,6],[21,6,1],[22,7],[22,7,1],[23,7],[23,8],[24,8],[24,8,1],[25,9],[25,9,1],[26,9],[26,10],[27,10],[27,10,1],[28,11],[28,11,1],[29,11],[29,12],[30,12],[30,12,1],[31,12],[31,13],[32,13],[32,13,1],[33,14],[33,14,1],[35,15]];
 const chipColors = {white:'white', black:'black', orange:'peru', green:'green', red:'firebrick', blue:'royalblue', yellow:'gold', purple:'blueviolet', droplet:'gray', rat:'gray'}
@@ -75,18 +56,18 @@ const allVariants = {
             C:{ 1:8, 2:12, 4:18 }, // white threshold
             D:{ 1:8, 2:12, 4:18 }, // one-two-three
         },
-        orange:{
-            A:{ 1:3 }, // pumpkin
-        },
-        black:{
-            A:{ 1:10 }, // 3+ players
-            B:{ 1:10 }, // 2  players
-        },
         purple:{
             A:{ 1:9 },  // keep bonus
             B:{ 1:12 }, // swap bonus
             C:{ 1:10 }, // victory points
             D:{ 1:11 }, // upgrader
+        },
+        black:{
+            A:{ 1:10 }, // 3+ players
+            B:{ 1:10 }, // 2  players
+        },
+        orange:{
+            A:{ 1:3 }, // pumpkin
         },
         white:{
             A:{ 1:0, 2:0, 3:0 }, // exploding chips
@@ -127,8 +108,8 @@ const allVariants = {
             D: {
                 0: "If you place a blue 1/2/4-chip onto a ruby space, you immediately get 1/2/4 victory points.",
                 1: "If you place this chip onto a ruby space, you immediately get 1 victory point.",
-                1: "If you place this chip onto a ruby space, you immediately get 2 victory points.",
-                1: "If you place this chip onto a ruby space, you immediately get 4 victory points.",
+                2: "If you place this chip onto a ruby space, you immediately get 2 victory points.",
+                4: "If you place this chip onto a ruby space, you immediately get 4 victory points.",
             },
         },
         yellow:{
@@ -136,13 +117,6 @@ const allVariants = {
             B: {0: "The next chip placed is moved twice as many spaces."},
             C: {0: "After you have placed one yellow chip, the white threshold is increased to 8. If you have placed 3 yellow chips, it increases to 9."},
             D: {0: "If this is your 1st/2nd/3rd yellow chip placed, it is moved an extra 1/2/3 spaces."},
-        },
-        orange:{
-            A: {0: "No additional effect."},
-        },
-        black:{
-            A: {0: "If you placed more black chips than a player next to you, move your droplet. If you have more than both players next to you, also take a ruby."},
-            B: {0: "If you placed as many black chips as the other player, move your droplet. If you have more, also take a ruby."},
         },
         purple:{
             A: {
@@ -164,6 +138,13 @@ const allVariants = {
                 2: "After the round, if you placed 2 purple chips, you may upgrade another chip's value from 2 to 4.",
                 3: "After the round, if you placed 3 purple chips, you may upgrade another chip's value from 1 to 4.",
             },
+        },
+        black:{
+            A: {0: "If you placed more black chips than a player next to you, move your droplet. If you have more than both players next to you, also take a ruby."},
+            B: {0: "[For 2 players] If you placed as many black chips as the other player, move your droplet. If you have more, also take a ruby."},
+        },
+        orange:{
+            A: {0: "No additional effect."},
         },
         white:{
             A: {0: "No additional effect. If your white chips add up to more than 7, you lose the round."},

@@ -415,3 +415,18 @@ button {
     flex-direction: column;
     gap: 10px;
 }
+.variant-selector {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin: 15px 0px;
+}
+.variant-selector-row {
+    align-items: center;
+    justify-content: space-evenly;
+    display: flex;
+    flex-direction: row;
+    gap: 5px;
+    flex-wrap: wrap;
+}

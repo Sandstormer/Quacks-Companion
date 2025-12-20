@@ -24,7 +24,6 @@ for (const color in game.chipVariants) { // List the chip costs of only the sele
     chipDesc[color] = allVariants.desc[color][variant];
 }
 
-const trackActual = document.getElementById('trackActual') // The actual track, has attributes: { elements, currIndex, currElem, placed }
 function initializeTrack(track = trackActual) {
     track.innerHTML = '';
     track.elements = spaceValues.map((val,i) => { // Elements for board spaces
@@ -58,7 +57,8 @@ function setElementToChip(elem, chip, mult=null, ruby=0) {
 }
 
 function loadGameState() {
-    game = loadFromStorage("gameState") ?? game;
+    game = loadFromStorage("gameState") ?? {};
+    if (Object.keys(game).length === 0) restartGame();
     chipsOwned = loadFromStorage("savedOwnedChips") ?? chipsOwned;
     chipsInBag = [...chipsOwned];
     chipsRedAside = loadFromStorage("savedRedAside") ?? [];
@@ -959,7 +959,8 @@ function restartGame() { // Reset the entire game
     totalWhite = 0;    // Current total of white chips placed
     totalWhiteMax = 7; // Maximum total of white chips without busting (usually 7)
     chipsRedAside = []; // List of Red B chips, to be placed at end of round, or saved until next round
-    restartRound();
+    game.chipVariants = { green:'A', red:'A', blue:'A', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
+    showVariantMenu();
 }
 
 rulesBtn.addEventListener('click', () => showSelectorSplash({ // Show the rules screen
@@ -973,9 +974,60 @@ rulesBtn.addEventListener('click', () => showSelectorSplash({ // Show the rules 
     showDesc: true,
     onConfirm: () => {}
 }));
-// witchBtn.addEventListener('click', showWitchMenu);
-function showVariantMenu() {
+function showVariantMenu() { // Show the variant screen before starting a new game
+    const overlay = quickElement("div","splash-overlay");
+    const box = quickElement("div","splash-box");
+    const titleElem = quickElement("h2","splash-title","Select Chip Variants");
+    const btnRow = quickElement("div","splash-buttons-row");
+    const confirmBtn = createButton({
+        buttonText: "Start Game",
+        onClick: () => {
+            document.body.removeChild(overlay);
+            restartRound();
+        },
+        holdToClick: true,
+    });
+    box.appendChild(titleElem);
 
+    // Rules display
+    const DescContainer = quickElement("div","shop-desc")
+    const chipDescElem = quickChipElement({color:'blank'});
+    const chipDescText = quickElement("div","shop-desc-text","Click on a chip to select that variant, and see its description.");
+    DescContainer.appendChild(chipDescElem);
+    DescContainer.appendChild(chipDescText);
+    box.appendChild(DescContainer);
+    function updateVarDescDisplay(thisColor, thisVariant) {
+        setElementToChip(chipDescElem, { color:thisColor });
+        chipDescText.innerHTML = allVariants.desc[thisColor][thisVariant][0];
+    }
+    
+    const chipList = quickElement("div","variant-selector");
+    for (const thisColor in allVariants.desc) {
+        if (Object.keys(allVariants.desc[thisColor]).length == 1) continue;
+        const chipRow = quickElement("div","variant-selector-row");
+        const chipElem = quickChipElement({ color:thisColor });
+        chipRow.appendChild(chipElem);
+        for (const thisVariant in allVariants.desc[thisColor]) {
+            const newButton = createButton({
+                buttonText: thisVariant,
+                buttonColor: ( game.chipVariants[thisColor] == thisVariant ? chipColors.orange : chipColors.blue ),
+                onClick: () => {
+                    updateVarDescDisplay(thisColor, thisVariant);
+                    chipRow.querySelectorAll('button').forEach(b => b.style.backgroundColor = chipColors.blue);
+                    newButton.style.backgroundColor = chipColors.orange;
+                    game.chipVariants[thisColor] = thisVariant;
+                },
+            });
+            chipRow.appendChild(newButton);
+        }
+        chipList.appendChild(chipRow);
+    }
+    box.appendChild(chipList);
+
+    btnRow.appendChild(confirmBtn);
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 }
 
 // Button to open witch menu and activate witch effects ===========================
