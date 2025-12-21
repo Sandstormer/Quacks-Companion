@@ -42,7 +42,7 @@ function setElementToTrackSpace(elem = trackActual.currElem) {
 }
 function setElementToChip(elem, chip, mult=null, ruby=0) {
     elem.className = 'chip';
-    const value = (['rat','droplet'].includes(chip.color) ? '' : (chip.value || ''));
+    const value = ( (['rat','droplet'].includes(chip.color) || chip.value<1) ? '' : (chip.value || ''));
     elem.style.backgroundImage = `url("chips/${chip.color}${value}.png")`;
     elem.innerHTML = '';
     if (ruby) elem.innerHTML += '<img src="ui/ruby.png" class="trackRuby">';
@@ -125,8 +125,9 @@ function placeChip(chip, track = trackActual, isReal = true) {
     if (game.chipVariants.yellow == 'C' && prevChip?.color == 'yellow') spaces *= 2; // yellow doubler
     if (chip.color == 'red' && game.chipVariants.red == 'A' && track.placed.filter(c => c.color=='orange').length > 0) spaces += 1;
     if (chip.color == 'red' && game.chipVariants.red == 'A' && track.placed.filter(c => c.color=='orange').length > 2) spaces += 1;
-    if (chip.color == 'red' && game.chipVariants.red == 'C' && prevChip?.color == 'white') spaces += prevChip?.value;
+    if (chip.color == 'red' && game.chipVariants.red == 'C' && prevChip?.color == 'white') spaces += prevChip.value;
     if (chip.color == 'white' && game.chipVariants.red == 'D' && chip.value == 1 && track.placed.filter(c => c.color == 'red').length) spaces += 1;
+    if (chip.value < 0) spaces = -chip.value;
     // Render the chip onto the track space
     track.placed.push(chip);
     track.currIndex = Math.min(track.elements.length-2, track.currIndex+spaces);
@@ -148,6 +149,8 @@ function updateTrackGlow(track = trackActual) {
     track.currElem = track.elements[track.currIndex];
     track.elements.forEach(e => e.classList.remove("track-glow"));
     track.elements[track.currIndex+1].classList.add("track-glow");
+    track.elements.forEach(e => e.classList.remove("track-glow-green"));
+    if (game.chipVariants.green == "C") track.elements[track.currIndex+1+resolveGreenChips(true)].classList.add("track-glow-green");
     track.currElem.scrollIntoView({behavior: "smooth", inline: "center"});
 }
 function triggerBluePeek(value) { // Peek at multiple chips, and you may place one
@@ -670,22 +673,31 @@ function shakeScreen(duration = 500, intensity = 10) {
 
 // Button to end round, buy chips, and restart round ===========================
 endBtn.addEventListener('click', () => { // Initial confirmation to end round
-    let msgText = "Are you sure you want to end the round";
-    if (game.chipVariants.red = "B" && chipsRedAside.length) msgText += `<br><br>You will be able to place ${chipsRedAside.length} red chips next.`
-    if (game.chipVariants.green = "C" && totalWhite == 7) msgText += `<br><br>Green chips will be doubled`
+    let msgText = "Are you sure you want to end the round?";
+    if (game.chipVariants.red == "B" && chipsRedAside.length) msgText += `<br><br>You will be able to place ${chipsRedAside.length} red chips next.`;
+    if (game.chipVariants.green == "C" && totalWhite == 7) msgText += `<br><br>Green chips will move you ${resolveGreenChips(true)} extra spaces!`;
     showConfirmSplash({
         title: "End Round?",
         message: msgText,
         cancelText: "Cancel",
         confirmText: "Yes, End Round",
-        onConfirm: () => placeRedChips(),
+        onConfirm: () => resolveGreenChips(),
         holdToConfirm: false
     });
 });
 // Do witch card peek at end of round
 // Do greens that need exactly 7 white
+function resolveGreenChips(isPreview = false) {
+    const greenActual = trackActual.placed.filter(c => c.color=='green' && c.value>0).reduce((sum, c) => sum + c.value, 0);
+    const greenResolved = trackActual.placed.filter(c => c.color=='green' && c.value==-1).length;
+    if (isPreview) return greenActual - greenResolved;
+    if (game.chipVariants.green == "C" && totalWhite == 7) {
+        for (let i = 0; i < greenActual - greenResolved; i++) placeChip({ color:'green', value:-1 });
+    }
+    resolveRedChips();
+}
 // Place any red chips (variant B) that were saved
-function placeRedChips() {
+function resolveRedChips() {
     if (game.chipVariants.red != 'B' || chipsRedAside.length == 0) {
         enterSummaryPhase()
     } else {
@@ -743,6 +755,7 @@ function enterSummaryPhase() {
             onClick: () => {
                 if (game.chipVariants.green == "A") {
                     showConfirmSplash({
+                        chipDisplay: {color:'green', margin:'auto'},
                         message: (endOptions.green == 2 ? "You get 2 rubies!" : "You get a ruby!"),
                         confirmText: "",
                         cancelText: "Ok"
@@ -750,23 +763,23 @@ function enterSummaryPhase() {
                     endOptions.green = 0;  disableButton(greenBtn,greenRow);
                 } else if (game.chipVariants.green == "B") {
                     const greenChipOptions = { 1:[[{color:'orange',value:1}]], 2:[[{color:'blue',value:1},{color:'red',value:1}]], 4:[[{color:'yellow',value:1},{color:'purple',value:1}]] };
-                activeGreenChips.forEach(c => {
-                    showSelectorSplash({
-                        title: "Free Chip",
-                        message: `Choose a chip to get for free`,
-                        confirmText: "Take",
-                        holdToConfirm: false,
-                        chipsToSelect: greenChipOptions[c.value],
-                        maxSelect: 1,
-                        showGold: false,
-                        onConfirm: (selectedChips) => { if (selectedChips.length) {
-                            const chip = selectedChips[0];  chipsOwned.push(chip);
-                            writeToLog(`Got a ${chip.color} ${chip.value}-chip`, 'green');
-                            endOptions.green -= 1;  activeGreenChips = activeGreenChips.filter(chip => chip != c);
-                            if (endOptions.green <= 0) disableButton(greenBtn,greenRow);
-                        } }
+                    activeGreenChips.forEach(c => {
+                        showSelectorSplash({
+                            title: "Free Chip",
+                            message: `Choose a chip to get for free`,
+                            confirmText: "Take",
+                            holdToConfirm: false,
+                            chipsToSelect: greenChipOptions[c.value],
+                            maxSelect: 1,
+                            showGold: false,
+                            onConfirm: (selectedChips) => { if (selectedChips.length) {
+                                const chip = selectedChips[0];  chipsOwned.push(chip);
+                                writeToLog(`Got a ${chip.color} ${chip.value}-chip`, 'green');
+                                endOptions.green -= 1;  activeGreenChips = activeGreenChips.filter(chip => chip != c);
+                                if (endOptions.green <= 0) disableButton(greenBtn,greenRow);
+                            } }
+                        });
                     });
-                });
                 } else if (game.chipVariants.green == "D") {
                     showConfirmSplash({
                         chipDisplay: {color:'green', margin:'auto'},
@@ -787,7 +800,7 @@ function enterSummaryPhase() {
         greenRow.appendChild(greenBtn);
     } else { // Show a dead button
         if (game.chipVariants.green == 'C') {
-            setElementToChip(greenElem,{ color:'green' },trackActual.placed.filter(c => c.color == 'green').length);
+            setElementToChip(greenElem,{ color:'green' },trackActual.placed.filter(c => c.color=='green' && c.value>0).reduce((sum, c) => sum + c.value, 0));
             greenRow.appendChild(createButton({ buttonColor:"grey",
                 buttonText: (totalWhite==7) ? "Green chips doubled!" : "Need exactly 7 white" }));
         } else {

@@ -73,7 +73,15 @@ body {
     font-size: 24px;
     flex-shrink: 0;
 }
-.track-glow {
+.track-glow-green {
+  animation: glow-green 1.5s ease-in-out infinite;
+}
+@keyframes glow-green {
+  0%   { background-color: rgba(0, 0, 0, 0.5); }
+  50%  { background-color: rgba(0, 255, 0, 0.15); }
+  100% { background-color: rgba(0, 0, 0, 0.5); }
+}
+.track-glow, .track-glow-green.track-glow {
   animation: glow-gold 1.5s ease-in-out infinite;
 }
 @keyframes glow-gold {
