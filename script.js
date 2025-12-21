@@ -9,6 +9,7 @@ let game = { // All variables for the game state
     dropletStats: { color:'droplet', value:1 }, // Stats of the droplet, can be upgraded
     ratStats: { color:'rat', value:2 },         // Stats of rat tails, set at the start of each round
     isPotionFull: true, // If the potion is available
+    activeFX: resetActiveFX(),
 };
 let chipsOwned = [...starterChips]; // Chips in bag at start of game, added to in shop phase
 let chipsInBag = [...starterChips]; // Chips in bag at start of each round, chips removed as they are drawn
@@ -107,6 +108,7 @@ function removeChipFromBag(chip) {
         Matter.Composite.remove(world, chip.body); // Remove physics chip from world
         createShockwave(chip.body, 150, 0.04);
     }
+    if (game.activeFX.blueInsurance > 0) game.activeFX.blueInsurance -= 1;
     if (chip.color == 'red' && game.chipVariants.red == 'B') { triggerRedAside(chip); return; }
     writeToLog(`Placed ${chip.color} ${chip.value}-chip`);
     return chip;
@@ -127,6 +129,7 @@ function placeChip(chip, track = trackActual, isReal = true) {
     if (chip.color == 'red' && game.chipVariants.red == 'A' && track.placed.filter(c => c.color=='orange').length > 2) spaces += 1;
     if (chip.color == 'red' && game.chipVariants.red == 'C' && prevChip?.color == 'white') spaces += prevChip.value;
     if (chip.color == 'white' && game.chipVariants.red == 'D' && chip.value == 1 && track.placed.filter(c => c.color == 'red').length) spaces += 1;
+    if (chip.color == 'blue' && game.chipVariants.blue == 'B' && game.activeFX.blueInsurance < chip.value+1) game.activeFX.blueInsurance = chip.value+1;
     if (chip.value < 0) spaces = -chip.value;
     // Render the chip onto the track space
     track.placed.push(chip);
@@ -142,14 +145,12 @@ function placeChip(chip, track = trackActual, isReal = true) {
     if (chip.color == 'blue' && game.chipVariants.blue == 'C' && track.currElem.ruby && isReal) awardVPR(0,1,chip);
     if (chip.color == 'blue' && game.chipVariants.blue == 'D' && track.currElem.ruby && isReal) awardVPR(chip.value,0,chip);
     if (chip.color == 'purple' && game.chipVariants.purple == 'C' && track.currElem.gold >= 10 && isReal) awardVPR(Math.floor(track.currElem.gold/10),0,chip);
-    if (chip.color == 'blue' && game.chipVariants.blue == 'A' && isReal) console.log('blue place');
     if (chip.color == 'blue' && game.chipVariants.blue == 'A' && isReal) triggerBluePeek(chip.value);
 }
 function updateTrackGlow(track = trackActual) {
     track.currElem = track.elements[track.currIndex];
-    track.elements.forEach(e => e.classList.remove("track-glow"));
-    track.elements[track.currIndex+1].classList.add("track-glow");
-    track.elements.forEach(e => e.classList.remove("track-glow-green"));
+    track.elements.forEach(e => { e.classList.remove("track-glow"); e.classList.remove("track-glow-green"); e.classList.remove("track-glow-blue"); });
+    track.elements[track.currIndex+1].classList.add( game.activeFX.blueInsurance>1 ? "track-glow-blue" : "track-glow" );
     if (game.chipVariants.green == "C") track.elements[track.currIndex+1+resolveGreenChips(true)].classList.add("track-glow-green");
     track.currElem.scrollIntoView({behavior: "smooth", inline: "center"});
 }
@@ -727,8 +728,9 @@ function enterSummaryPhase() {
     box.appendChild(titleElem);
     
     const VPText = `${spaceValues[trackActual.currIndex+1][1]} Victory Point${spaceValues[trackActual.currIndex+1][1]==1 ? '' : 's'}`;
-    let msgText = ( totalWhite > totalWhiteMax ? 
-        `You BUST! You don't get your ${VPText}, unless you forgo buying chips.` :
+    let msgText = ( totalWhite > totalWhiteMax ? ( game.activeFX.blueInsurance > 0 ?
+        `You BUST, but were protected by a blue chip! You still get ${VPText}, but can't roll the victory die.` :
+        `You BUST! You don't get your ${VPText}, unless you forgo buying chips.` ) :
         `You get ${VPText}!`
     );
     const msgElem = quickElement("p","splash-message",msgText);
@@ -941,6 +943,7 @@ function restartRound(round = game.roundCount) {
     // Start the round with owned chips, except reds which were saved for the next round
     // Restarting this round makes the red chips stay removed...
     chipsInBag = [...chipsOwned].filter(c => !chipsRedAside.includes(c));
+    game.activeFX = resetActiveFX();
     game.roundCount = round;
     initializeTrack();
     updateWhiteCount();
@@ -979,14 +982,18 @@ function restartGame() { // Reset the entire game
     game.prevBuy = { gold: 0, chips: [] }, // Amount of gold and chips purchased in previous shop phase
     game.dropletStats = { color:'droplet', value:1 }, // Stats of the droplet, can be upgraded
     game.ratStats = { color:'rat', value:2 },         // Stats of rat tails, set at the start of each round
-    game.isPotionFull = true, // If the potion is available
+    setPotionState(true), // If the potion is available
+    game.activeFX = resetActiveFX();
     chipsOwned = [...starterChips]; // Chips in bag at start of game, added to in shop phase
     chipsInBag = [...starterChips]; // Chips in bag at start of each round, chips removed as they are drawn
     totalWhite = 0;    // Current total of white chips placed
     totalWhiteMax = 7; // Maximum total of white chips without busting (usually 7)
     chipsRedAside = []; // List of Red B chips, to be placed at end of round, or saved until next round
-    game.chipVariants = { green:'A', red:'A', blue:'A', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
+    game.chipVariants = game?.chipVariants ?? { green:'A', red:'A', blue:'A', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
     showVariantMenu();
+}
+function resetActiveFX() {
+    return { blueInsurance: 0, witchOrange: false };
 }
 
 rulesBtn.addEventListener('click', () => showSelectorSplash({ // Show the rules screen
