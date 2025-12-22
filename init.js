@@ -11,6 +11,14 @@ const potionImg = document.getElementById('potionImg');
 const whiteCounter = document.getElementById('whiteCounter');
 const whiteCloud = document.getElementById('whiteCloud');
 const trackActual = document.getElementById('trackActual') // The actual track. Attributes: { elements, currIndex, currElem, placed }
+const col = { white:'white', black:'black', orange:'peru', green:'green', red:'firebrick', blue:'royalblue', 
+              yellow:'gold', purple:'blueviolet', cyan:'cyan', gray:'gray', pink:'#E020E0', palepurple:'#7661AF', palegreen:'#8effa3ff' };
+
+const url = new URL(location.href);
+if (url.searchParams.has('_v')) {
+    url.searchParams.delete('_v');
+    history.replaceState(null, '', url);
+}
 
 // ========== Chip Information ==========
 const starterChips = [
@@ -23,12 +31,8 @@ const starterChips = [
     { color: 'white', value: 3 },
     { color: 'green', value: 1 },
     { color: 'orange', value: 1 },
-
-    { color: 'blue', value: 4 },
-    { color: 'blue', value: 4 },
 ];
 const spaceValues = [[0,0],[1,0],[2,0],[3,0],[4,0],[5,0,1],[6,1],[7,1],[8,1],[9,1,1],[10,2],[11,2],[12,2],[13,2,1],[14,3],[15,3],[15,3,1],[16,3],[16,4],[17,4],[17,4,1],[18,4],[18,5],[19,5],[19,5,1],[20,5],[20,6],[21,6],[21,6,1],[22,7],[22,7,1],[23,7],[23,8],[24,8],[24,8,1],[25,9],[25,9,1],[26,9],[26,10],[27,10],[27,10,1],[28,11],[28,11,1],[29,11],[29,12],[30,12],[30,12,1],[31,12],[31,13],[32,13],[32,13,1],[33,14],[33,14,1],[35,15]];
-const chipColors = {white:'white', black:'black', orange:'peru', green:'green', red:'firebrick', blue:'royalblue', yellow:'gold', purple:'blueviolet', droplet:'gray', rat:'gray'}
 const allVariants = {
     cost: { // Cost of each chip variant: [color][variant][value]
         green:{
