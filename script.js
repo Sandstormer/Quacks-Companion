@@ -129,7 +129,7 @@ function placeChip(chip, track = trackActual, isReal = true) {
     if (chip.color == 'red' && game.chipVariants.red == 'A' && track.placed.filter(c => c.color=='orange').length > 2) spaces += 1;
     if (chip.color == 'red' && game.chipVariants.red == 'C' && prevChip?.color == 'white') spaces += prevChip.value;
     if (chip.color == 'white' && game.chipVariants.red == 'D' && chip.value == 1 && track.placed.filter(c => c.color == 'red').length) spaces += 1;
-    if (chip.color == 'blue' && game.chipVariants.blue == 'B' && game.activeFX.blueInsurance < chip.value+1) game.activeFX.blueInsurance = chip.value+1;
+    if (chip.color == 'blue' && game.chipVariants.blue == 'B' && game.activeFX.blueInsurance < chip.value+1 && isReal) game.activeFX.blueInsurance = chip.value+1;
     if (chip.value < 0) spaces = -chip.value;
     // Render the chip onto the track space
     track.placed.push(chip);
@@ -741,10 +741,6 @@ function enterSummaryPhase() {
         purple: Math.min(3, trackActual.placed.filter((c) => c.color == 'purple' && game.chipVariants.purple != 'C').length),
         black: trackActual.placed.filter((c) => c.color == 'black').length
     }
-    function disableButton(button, row) {
-        row.removeChild(button);
-        row.appendChild(createButton({ buttonText:"Already done", buttonColor:"grey" }));
-    }
 
     const greenRow = quickElement("div","splash-buttons-row");
     const greenElem = quickChipElement({ color:'green' }, endOptions.green);
@@ -753,6 +749,7 @@ function enterSummaryPhase() {
     if (endOptions.green) {
         const buttonText = { A:"Claim Bonus!", B:"Claim Bonus!", D:'Pay 1 <img src="ui/ruby.png" class="textRuby"> ruby to move droplet?' };
         const greenBtn = createButton({
+            buttonColor: chipColors.blue,
             buttonText: buttonText[game.chipVariants.green],
             onClick: () => {
                 if (game.chipVariants.green == "A") {
@@ -762,7 +759,7 @@ function enterSummaryPhase() {
                         confirmText: "",
                         cancelText: "Ok"
                     });
-                    endOptions.green = 0;  disableButton(greenBtn,greenRow);
+                    endOptions.green = 0;  greenBtn.replaceWith(createButton({ buttonText:"Already Done", buttonColor:"grey" }));
                 } else if (game.chipVariants.green == "B") {
                     const greenChipOptions = { 1:[[{color:'orange',value:1}]], 2:[[{color:'blue',value:1},{color:'red',value:1}]], 4:[[{color:'yellow',value:1},{color:'purple',value:1}]] };
                     activeGreenChips.forEach(c => {
@@ -778,7 +775,7 @@ function enterSummaryPhase() {
                                 const chip = selectedChips[0];  chipsOwned.push(chip);
                                 writeToLog(`Got a ${chip.color} ${chip.value}-chip`, 'green');
                                 endOptions.green -= 1;  activeGreenChips = activeGreenChips.filter(chip => chip != c);
-                                if (endOptions.green <= 0) disableButton(greenBtn,greenRow);
+                                if (endOptions.green <= 0) greenBtn.replaceWith(createButton({ buttonText:"Already Done", buttonColor:"grey" }));
                             } }
                         });
                     });
@@ -793,7 +790,7 @@ function enterSummaryPhase() {
                             endOptions.green -= 1;
                             game.dropletStats.value += 1;
                             if (endOptions.green == 1) greenBtn.firstChild.textContent = "Claim Again?";
-                            if (endOptions.green == 0) disableButton(greenBtn,greenRow)
+                            if (endOptions.green == 0) greenBtn.replaceWith(createButton({ buttonText:"Already Done", buttonColor:"grey" }))
                         }
                     });
                 }
@@ -817,11 +814,12 @@ function enterSummaryPhase() {
     if (endOptions.purple) {
         const buttonText = { A:"Claim Bonus!", B:`Trade in ${endOptions.purple} purple chips?`, D:"Upgrade a Chip!" };
         const purpleBtn = createButton({
+            buttonColor: chipColors.blue,
             buttonText: buttonText[game.chipVariants.purple],
             onClick: () => {
                 if (game.chipVariants.purple == "A") {
                     if (endOptions.purple == 3) game.dropletStats.value += 1;
-                    endOptions.purple = 0;  disableButton(purpleBtn, purpleRow);
+                    endOptions.purple = 0;  purpleBtn.replaceWith(createButton({ buttonText:"Already Done", buttonColor:"grey" }));
                     showConfirmSplash({
                         message: ( endOptions.purple == 1 ? "You get 1 victory point!" : 
                                  ( endOptions.purple == 2 ? "You get 1 victory point and a ruby!" : 
@@ -850,7 +848,7 @@ function enterSummaryPhase() {
                                         confirmText: ""
                                     });
                             while (endOptions.purple) { endOptions.purple -= 1;  chipsOwned.splice(chipsOwned.findIndex(c => c.color === 'purple'), 1); }
-                            disableButton(purpleBtn, purpleRow);
+                            purpleBtn.replaceWith(createButton({ buttonText:"Already Done", buttonColor:"grey" }));
                         }
                     });
                 } else if (game.chipVariants.purple == "D") {
@@ -866,7 +864,7 @@ function enterSummaryPhase() {
                             const chip = selectedChips[0];  const prevText = `${chip.color} ${chip.value}-chip`;
                             chip.value = ( endOptions.purple==1 || (endOptions.purple==2 && chip.value==1) ? 2 : 4 );
                             writeToLog(`Upgraded ${prevText} to ${chip.value}-chip`, 'purple');
-                            endOptions.purple = 0;  disableButton(purpleBtn, purpleRow);
+                            endOptions.purple = 0;  purpleBtn.replaceWith(createButton({ buttonText:"Already Done", buttonColor:"grey" }));
                         } }
                     });
                 }
@@ -883,6 +881,7 @@ function enterSummaryPhase() {
     blackRow.appendChild(blackElem);
     if (endOptions.black) {
         const blackBtn = createButton({
+            buttonColor: chipColors.blue,
             buttonText: "More than one player next to you?",
             onClick: () => {
                 game.dropletStats.value += 1;
@@ -891,7 +890,7 @@ function enterSummaryPhase() {
                     confirmText: "",
                     cancelText: "Ok"
                 });
-                disableButton(blackBtn, blackRow);
+                blackBtn.replaceWith(createButton({ buttonText:"Already Done", buttonColor:"grey" }));
             },
             holdToClick: true
         });
@@ -902,14 +901,80 @@ function enterSummaryPhase() {
     }
     box.appendChild(blackRow);
 
+    const upgradeRow = quickElement("div","splash-buttons-row");
+    const upgradePotionBtn = game.isPotionFull ?
+        createButton({ buttonText:"Potion is full", buttonColor:"grey" }) :
+        createButton({ // If potion can be refilled
+            buttonColor: chipColors.blue,
+            buttonText: "Refill Potion",
+            onClick: () => {
+                showConfirmSplash({
+                    chipDisplay: { color:'potion', margin:'auto' },
+                    message: "Pay 2 rubies to refill your potion?",
+                    confirmText: "Confirm",
+                    cancelText: "Go back",
+                    holdToConfirm: true,
+                    onConfirm: () => { 
+                        setPotionState(true);  
+                        writeToLog("Refilled potion with rubies",'pink');
+                        upgradePotionBtn.replaceWith(createButton({ buttonText:"Potion Refilled", buttonColor:"grey" }));
+                    }
+                });
+            },
+        });
+    upgradeRow.appendChild(upgradePotionBtn);
+    const upgradeDropletBtn = createButton({
+        buttonColor: chipColors.blue,
+        buttonText: "Upgrade Droplet",
+        onClick: () => {
+            showConfirmSplash({
+                chipDisplay: { color:'droplet', margin:'auto' },
+                message: "Pay 2 rubies to upgrade your droplet?",
+                confirmText: "Confirm",
+                cancelText: "Go back",
+                holdToConfirm: true,
+                onConfirm: () => { 
+                    game.dropletStats.value += 1;
+                    writeToLog("Upgraded droplet with rubies",'pink');
+                    showConfirmSplash({
+                        chipDisplay: { color:'droplet', margin:'auto' },
+                        message: "Your droplet has been upgraded.",
+                        cancelText: "Ok",
+                    });
+                }
+            });
+        },
+    });
+    upgradeRow.appendChild(upgradeDropletBtn);
+    const upgradeVictoryBtn = createButton({
+        buttonColor: chipColors.blue,
+        buttonText: "Free Pumpkin",
+        onClick: () => {
+            showConfirmSplash({
+                chipDisplay: { color:'orange', margin:'auto' },
+                message: "Did you win the round, and roll a free orange 1-chip on the victory die?",
+                confirmText: "Confirm",
+                cancelText: "Go back",
+                holdToConfirm: true,
+                onConfirm: () => { 
+                    chipsOwned.push({ color:'orange', value:1 });
+                    writeToLog("Got a free orange 1-chip",'pink');
+                    upgradeVictoryBtn.replaceWith(createButton({ buttonText:"Got a pumpkin", buttonColor:"grey" }));
+                }
+            });
+        },
+    });
+    upgradeRow.appendChild(upgradeVictoryBtn);
+    box.appendChild(upgradeRow);
+
     const shopRow = quickElement("div","splash-buttons-row");
     const shopBtn = createButton({
         buttonText: "Go to buy chips",
+        holdToClick: true,
         onClick: () => {
             document.body.removeChild(overlay);
             enterBuyPhase();
         },
-        holdToClick: true
     });
     shopRow.appendChild(shopBtn);
     box.appendChild(shopRow);
