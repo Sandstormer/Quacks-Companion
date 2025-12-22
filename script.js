@@ -119,6 +119,7 @@ function placeChip(chip, track = trackActual, isReal = true, forceIndex = null) 
     if (track.currIndex == track.elements.length-2) return;
     let spaces = chip.value;  const prevChip = track.placed[track.placed.length-1];
     // Do chip effects that increase the number of spaces
+    if (chip.color == 'orange' && game.activeFX.witchOrange) spaces += 1;
     if (chip.color == 'yellow' && game.chipVariants.yellow == 'A' && prevChip?.color == 'white' && isReal) triggerYellowReturnWhite();
     if (chip.color == 'yellow' && game.chipVariants.yellow == 'D') { // 1-2-3 yellow
         const placedYellowCount = track.placed.filter(c => c.color == 'yellow').length;
@@ -238,10 +239,12 @@ function removeLastChip(track = trackActual) {
 }
 function updateWhiteCount() {
     const newTotal = trackActual.placed.filter(c => c.color === 'white').reduce((sum, c) => sum + c.value, 0);
+    totalWhiteMax = 7;
     if (game.chipVariants.yellow == 'C') {
         const placedYellowCount = trackActual.placed.filter(c => c.color == 'yellow').length;
         totalWhiteMax = ( placedYellowCount ? ( placedYellowCount==3 ? 9 : 8 ) : 7 );
     }
+    if (game.activeFX.witchThreshold) totalWhiteMax = 9;
     if (newTotal != totalWhite) {
         totalWhite = newTotal;
         whiteCounter.innerHTML = `${totalWhite}/${totalWhiteMax}`;
@@ -427,7 +430,7 @@ function showSelectorSplash({
     box.appendChild(btnRow);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
-    track.currElem.scrollIntoView({inline: "center"});
+    if (showTrack) track.currElem.scrollIntoView({inline: "center"});
 }
 function numToText(num) {
     const text = ['zero','one','two','three','four','five','six','seven','eight','nine','ten'];
@@ -1058,7 +1061,7 @@ function restartGame() { // Reset the entire game
     showVariantMenu();
 }
 function resetActiveFX() {
-    game.activeFX = { blueInsurance: 0, witchOrange: false };
+    game.activeFX = { blueInsurance: 0, witchOrange: false, witchThreshold: false };
 }
 
 rulesBtn.addEventListener('click', () => showSelectorSplash({ // Show the rules screen
@@ -1139,8 +1142,8 @@ function showWitchMenu() {
     const box = quickElement("div","splash-box");
     const titleElem = quickElement("h2","splash-title","Witch Menu");
     box.appendChild(titleElem);
-    const msgElem = quickElement("p","splash-message","Choose an effect");
-    box.appendChild(msgElem);
+    // const msgElem = quickElement("p","splash-message","Choose an effect");
+    // box.appendChild(msgElem);
     const witchContainer = quickElement("div","witch-container");
 
     const redoButton = createButton({
@@ -1156,7 +1159,7 @@ function showWitchMenu() {
     });
     witchContainer.appendChild(redoButton);
 
-    const freeButton = createButton({
+    const addChipButton = createButton({
         buttonText: "Add chip to bag",
         buttonColor: col.palepurple,
         onClick: () => showSelectorSplash({
@@ -1174,17 +1177,114 @@ function showWitchMenu() {
                     chipsOwned.push(newChip);
                     chipsInBag.push(newChip);
                     addPhysicsChips([newChip]);
-                    writeToLog(`Used witch effect to steal ${thisChip.color} ${thisChip.value}-chip`, col.pink);
+                    writeToLog(`Witch Effect: Bought ${thisChip.color} ${thisChip.value}-chip`, col.pink);
                 });
                 document.body.removeChild(overlay);
             }
         })
     });
-    witchContainer.appendChild(freeButton);
+    witchContainer.appendChild(addChipButton);
 
-    witchContainer.appendChild(quickElement("div","splash-message","Peek at chips in bag:"))
-    const peekRow = quickElement("div","splash-buttons-row");
-    peekRow.style.marginTop = "-10px";
+    const removeChipButton = createButton({
+        buttonText: "Remove chip from bag",
+        buttonColor: col.palepurple,
+        onClick: () => showSelectorSplash({
+            title: "Permanently remove a chip from your bag",
+            message: "",
+            confirmText: "Remove",
+            holdToConfirm: true,
+            chipsToSelect: [chipsInBag],
+            maxSelect: 1,
+            showDesc: true,
+            onConfirm: (selectedChips) => {
+                selectedChips.forEach(thisChip => {
+                    const newChip = { color:thisChip.color, value:thisChip.value };
+                    chipsOwned.splice(chipsOwned.findIndex(c => c.color === newChip.color && c.value === newChip.value), 1);
+                    writeToLog(`Witch Effect: Permanently removed ${thisChip.color} ${thisChip.value}-chip`, col.pink);
+                    restartRound();
+                });
+                document.body.removeChild(overlay);
+            }
+        })
+    });
+    witchContainer.appendChild(removeChipButton);
+    
+    const refillPotionButton = createButton({
+        buttonText: "Refill potion",
+        buttonColor: col.palepurple,
+        onClick: () => showConfirmSplash({
+            chipDisplay: { color:'potion', margin:'auto' },
+            message: "Refill potion for free?",
+            cancelText: "Cancel",
+            confirmText: "Refill Potion",
+            holdToConfirm: true,
+            onConfirm: () => { setPotionState(true); document.body.removeChild(overlay); 
+                writeToLog(`Witch Effect: Refilled potion`, col.pink); }
+        })
+    });
+    witchContainer.appendChild(refillPotionButton);
+
+    const upgradeDropletBtn = createButton({
+        buttonText: "Upgrade droplet",
+        buttonColor: col.palepurple,
+        onClick: () => showConfirmSplash({
+            chipDisplay: { color:'droplet', margin:'auto' },
+            message: "Upgrade droplet for free?",
+            cancelText: "Cancel",
+            confirmText: "Upgrade Droplet",
+            holdToConfirm: true,
+            onConfirm: () => { game.dropletStats.value += 1; document.body.removeChild(overlay);
+                if (['rat','droplet'].includes(trackActual.placed[trackActual.placed.length-1].color)) initializeTrack(); 
+                writeToLog(`Witch Effect: Upgraded droplet`, col.pink);
+                showConfirmSplash({
+                    chipDisplay: { color:'droplet', margin:'auto' },
+                    message: "Your droplet has been upgraded.",
+                    cancelText: "Ok",
+                }); 
+            }
+        })
+    });
+    witchContainer.appendChild(upgradeDropletBtn);
+
+    // witchContainer.appendChild(quickElement("div","splash-message","Activate effect for round:"))
+    const witchOrangeButton = createButton({
+        buttonText: game.activeFX.witchOrange ? "Disable Orange Boost" : "Activate Orange Boost",
+        buttonColor: col.palepurple,
+        onClick: () => showConfirmSplash({
+            chipDisplay: { color:'orange', margin:'auto' },
+            message: `This round, every orange chip will be moved an extra space.<br><br>
+                It is currently ${game.activeFX.witchOrange ? "ACTIVE" : "DISABLED"}.`,
+            cancelText: "Cancel",
+            confirmText: game.activeFX.witchOrange ? "Disable Orange Boost" : "Activate Orange Boost",
+            holdToConfirm: true,
+            onConfirm: () => { 
+                game.activeFX.witchOrange = !game.activeFX.witchOrange;  document.body.removeChild(overlay);
+                witchOrangeButton.textContent = game.activeFX.witchOrange ? "Disable Orange Boost" : "Activate Orange Boost";
+            }
+        })
+    });
+    witchContainer.appendChild(witchOrangeButton);
+    const witchWhiteButton = createButton({
+        buttonText: game.activeFX.witchThreshold ? "Disable White Boost" : "Activate White Boost",
+        buttonColor: col.palepurple,
+        onClick: () => showConfirmSplash({
+            chipDisplay: { color:'white', margin:'auto' },
+            message: `This round, the threshold for busting will be increased to 9.<br><br>
+                It is currently ${game.activeFX.witchThreshold ? "ACTIVE" : "DISABLED"}.`,
+            cancelText: "Cancel",
+            confirmText: game.activeFX.witchThreshold ? "Disable White Boost" : "Activate White Boost",
+            holdToConfirm: true,
+            onConfirm: () => { 
+                game.activeFX.witchThreshold = !game.activeFX.witchThreshold;  document.body.removeChild(overlay);
+                witchWhiteButton.textContent = game.activeFX.witchThreshold ? "Disable White Boost" : "Activate White Boost";
+            }
+        })
+    });
+    witchContainer.appendChild(witchWhiteButton);
+
+    witchContainer.appendChild(quickElement("div","splash-message","Peek and place a chip from bag:"))
+    const witchPeekRow = quickElement("div","splash-buttons-row");
+    witchPeekRow.style.marginTop = "-10px";
     [1,2,3,4,5].forEach(value => {
         const peekButton = createButton({
             buttonText: value,
@@ -1207,9 +1307,40 @@ function showWitchMenu() {
                 document.body.removeChild(overlay);
             }
         });
-        peekRow.appendChild(peekButton);
+        witchPeekRow.appendChild(peekButton);
     });
-    witchContainer.appendChild(peekRow);
+    witchContainer.appendChild(witchPeekRow);
+
+    witchContainer.appendChild(quickElement("div","splash-message","Peek and upgrade a chip from bag:"))
+    const witchUpgradeRow = quickElement("div","splash-buttons-row");
+    witchUpgradeRow.style.marginTop = "-10px";
+    ["All",2,3,4,5].forEach(value => {
+        const chipsToUpgrade = ( value == "All" ? 
+            chipsOwned.filter(c => ['red','blue','yellow','green'].includes(c.color) && c.value<4) :
+            grabChipFromBag(value).filter(c => ['red','blue','yellow','green'].includes(c.color) && c.value<4) );
+        const witchUpgradeButton = createButton({
+            buttonText: value,
+            buttonColor: col.palepurple,
+            onClick: () => { showSelectorSplash({
+                    title: "Upgrade Chip",
+                    message: `Upgrade a chip to the next value`,
+                    confirmText: "Upgrade",
+                    holdToConfirm: false,
+                    chipsToSelect: [chipsToUpgrade],
+                    maxSelect: 1,
+                    showGold: false,
+                    onConfirm: (selectedChips) => { if (selectedChips.length) {
+                        const chip = selectedChips[0];  const prevText = `${chip.color} ${chip.value}-chip`;
+                        chip.value = ( chip.value==2 ? 4 : 2 );  restartRound();
+                        writeToLog(`Witch Effect: Upgraded ${prevText} to ${chip.value}-chip`, col.pink);
+                    } }
+                });
+                document.body.removeChild(overlay);
+            }
+        });
+        witchUpgradeRow.appendChild(witchUpgradeButton);
+    });
+    witchContainer.appendChild(witchUpgradeRow);
 
     const restartRoundButton = createButton({
         buttonText: "Restart Round",
@@ -1221,7 +1352,7 @@ function showWitchMenu() {
             confirmText: "Restart Round",
             holdToConfirm: true,
             onConfirm: () => { restartRound(); document.body.removeChild(overlay); 
-                writeToLog(`Used witch effect to restart round ${game.roundCount}`, col.pink); }
+                writeToLog(`Witch Effect: Restart round ${game.roundCount}`, col.pink); }
         })
     });
     witchContainer.appendChild(restartRoundButton);
