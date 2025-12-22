@@ -6,7 +6,7 @@ let game = { // All variables for the game state
     actionLog: [], // Text log of actions
     roundCount: 1, // Which round it is
     prevBuy: { gold: 0, chips: [] }, // Amount of gold and chips purchased in previous shop phase
-    dropletStats: { color:'droplet', value:1 }, // Stats of the droplet, can be upgraded
+    dropletStats: { color:'droplet', value:0 }, // Stats of the droplet, can be upgraded
     ratStats: { color:'rat', value:0 },         // Stats of rat tails, set at the start of each round
     isPotionFull: true, // If the potion is available
 };
@@ -23,7 +23,7 @@ function initializeTrack(track = trackActual) {
     track.innerHTML = '';
     track.elements = spaceValues.map((val,i) => { // Elements for board spaces
         const newSpace = document.createElement('div');
-        newSpace.gold = val[0];  newSpace.VP = val[1];  newSpace.ruby = val[2];
+        newSpace.gold = val[0];  newSpace.VP = val[1];  newSpace.ruby = val[2];  newSpace.index = i;
         setElementToTrackSpace(newSpace);  track.appendChild(newSpace);
         return newSpace;
     });
@@ -42,7 +42,7 @@ function setElementToTrackSpace(elem = trackActual.currElem) {
     elem.style.background = '';
 }
 function setElementToChip(elem, chip, mult=null, ruby=0) {
-    elem.className = 'chip';
+    elem.className = 'chip';  elem.color = chip.color;  elem.value = chip.value;
     const value = ( (['rat','droplet'].includes(chip.color) || chip.value<1) ? '' : (chip.value || ''));
     elem.style.backgroundImage = `url("chips/${chip.color}${value}.png")`;
     elem.innerHTML = '';
@@ -79,14 +79,14 @@ function loadFromStorage(key) {
 }
 function saveGameState() { // Make sure blue peeking is the same after reload!!!!!!!!! and delayed reds!
     localStorage.setItem("gameState",JSON.stringify(game));
-    // Save chips that are owned or placed, but only the color and value
+    // Save chips that are owned/placed/aside, but only the color and value
     const savedOwnedChips = chipsOwned.map(c => { return {color:c.color,value:c.value}; });
     localStorage.setItem("savedOwnedChips",JSON.stringify(savedOwnedChips));
     const savedRedAside = chipsRedAside.map(c => { return {color:c.color,value:c.value}; });
     localStorage.setItem("savedRedAside",JSON.stringify(savedRedAside));
     const savedPlacedChips = trackActual.placed.filter(c => !['rat','droplet'].includes(c.color)).map(c => { return {color:c.color,value:c.value}; });
     localStorage.setItem("savedPlacedChips",JSON.stringify(savedPlacedChips));
-    console.log('saved game');
+    console.log('Saved game');
 }
 
 function regularPull() {
@@ -113,7 +113,7 @@ function removeChipFromBag(chip) {
     if (chip.color == 'red' && game.chipVariants.red == 'B') { triggerRedAside(chip); return; }
     return chip;
 }
-function placeChip(chip, track = trackActual, isReal = true) {
+function placeChip(chip, track = trackActual, isReal = true, forceIndex = null) {
     if (chip == undefined) return;
     if (track != trackActual) isReal = false;
     if (track.currIndex == track.elements.length-2) return;
@@ -134,13 +134,10 @@ function placeChip(chip, track = trackActual, isReal = true) {
     // Render the chip onto the track space
     track.placed.push(chip);
     track.currIndex = Math.min(track.elements.length-2, track.currIndex+spaces);
+    if (forceIndex) track.currIndex = forceIndex;
     updateTrackGlow(track);
     setElementToChip(track.currElem, chip, null, track.currElem.ruby);
-    if (isReal) {
-        console.log('real place');
-        updateWhiteCount();
-        saveGameState();
-    }
+    if (isReal) { updateWhiteCount(); saveGameState(); }
     // Do chips effects that resolve after the chip is placed
     if (chip.color == 'blue' && game.chipVariants.blue == 'C' && track.currElem.ruby && isReal) awardVPR(0,1,chip);
     if (chip.color == 'blue' && game.chipVariants.blue == 'D' && track.currElem.ruby && isReal) awardVPR(chip.value,0,chip);
@@ -174,7 +171,7 @@ function triggerBluePeek(value) { // Peek at multiple chips, and you may place o
 }
 function triggerYellowReturnWhite() {
     setElementToTrackSpace(trackActual.currElem);
-    const [chip] = trackActual.placed.splice(trackActual.placed.length-2,1);
+    const [chip] = trackActual.placed.splice(trackActual.placed.length-1,1);
     writeToLog(`Yellow effect returned ${chip.color} ${chip.value}-chip`);
     chip.body = spawnChip(chip.color, chip.value)
     chipsInBag.push(chip);
@@ -242,7 +239,7 @@ function removeLastChip(track = trackActual) {
 function updateWhiteCount() {
     const newTotal = trackActual.placed.filter(c => c.color === 'white').reduce((sum, c) => sum + c.value, 0);
     if (game.chipVariants.yellow == 'C') {
-        const placedYellowCount = track.placed.filter(c => c.color == 'yellow').length;
+        const placedYellowCount = trackActual.placed.filter(c => c.color == 'yellow').length;
         totalWhiteMax = ( placedYellowCount ? ( placedYellowCount==3 ? 9 : 8 ) : 7 );
     }
     if (newTotal != totalWhite) {
@@ -255,7 +252,7 @@ function updateWhiteCount() {
             whiteCloud.classList = 'cloud-burst';
             setTimeout(() => { createBustForce(); }, 1200); 
             drawBtn.innerHTML = 'BUST!';
-        } else {
+        } else if (totalWhite > 0) {
             drawBtn.innerHTML = 'Draw Chip';
             whiteCloud.src = "ui/cloud.png";
             whiteCloud.classList.remove('cloud-pulse');  void whiteCloud.offsetWidth;  whiteCloud.classList.add('cloud-pulse');
@@ -346,15 +343,13 @@ function showSelectorSplash({
     // Preview track
     const track = quickElement('div','track');
     track.style.margin = "0px -20px 18px";
-    initializeTrack(track);
-    trackActual.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
+    updatePreviewTrack();
     function updatePreviewTrack(chipToRemove = null) { // Update the preview track when a chip is selected/unselected
         if (showTrack) {
             initializeTrack(track); // Clear the track
-            trackActual.placed.filter(c => !['rat','droplet'].includes(c.color)).forEach(c => placeChip(c, track));
+            trackActual.elements.filter(e => e?.color && !['rat','droplet'].includes(e?.color)).forEach(c => placeChip(c, track, false, c.index));
             selectedChips = selectedChips.filter(x => x !== chipToRemove);
             selectedChips.forEach(c => placeChip(c, track)); // Re-place all the chips on the track
-            console.log(selectedChips);
         }
     }
 
@@ -377,7 +372,7 @@ function showSelectorSplash({
             chipDescText.innerHTML = chipDesc[chip.color][effValue];
         }
     }
-    console.log(chipsToSelect===chipBuyOrder)
+
     const chipList = quickElement("div","chip-selector");
     chipsToSelect.forEach(thisBuyRow => {
         const chipRow = quickElement("div","chip-selector-row");
@@ -544,10 +539,7 @@ function resizeCanvasToParent() { // Set the proper size for the canvas
     // Internal resolution (render size)
     canvas.width  = width  * ratio;
     canvas.height = height * ratio;
-    console.log({
-        css: [width, height],
-        internal: [canvas.width, canvas.height]
-    });
+    console.log({ css: [width, height], internal: [canvas.width, canvas.height] });
 }
 window.addEventListener("devicemotion", e => {
     if (gyro.enabled) {
@@ -1058,8 +1050,8 @@ function restartGame() { // Reset the entire game
     game.actionLog = [], // Text log of actions
     game.roundCount = 1, // Which round it is
     game.prevBuy = { gold: 0, chips: [] }, // Amount of gold and chips purchased in previous shop phase
-    game.dropletStats = { color:'droplet', value:1 }, // Stats of the droplet, can be upgraded
-    game.ratStats = { color:'rat', value:2 },         // Stats of rat tails, set at the start of each round
+    game.dropletStats = { color:'droplet', value:0 }, // Stats of the droplet, can be upgraded
+    game.ratStats = { color:'rat', value:0 },         // Stats of rat tails, set at the start of each round
     setPotionState(true), // If the potion is available
     resetActiveFX();
     chipsOwned = [...starterChips]; // Chips in bag at start of game, added to in shop phase
