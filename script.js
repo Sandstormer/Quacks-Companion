@@ -524,7 +524,7 @@ const runner = Matter.Runner.create();
 Matter.Render.run(render);
 Matter.Runner.run(runner, engine);
 
-let gyro = { enabled: true, lockout: false, factor: 0.25, shakeFactor: 0.5, spinFactor: 0.00005 };
+let gyro = { enabled: false, lockout: false, factor: 0.25, shakeFactor: 0.5, spinFactor: 0.00005 };
 
 function resizeCanvasToParent() { // Set the proper size for the canvas
     // Make sure parent has been laid out
@@ -573,11 +573,6 @@ window.addEventListener("devicemotion", e => {
         }
     }
 });
-// if (typeof DeviceMotionEvent.requestPermission === "function") { // Request permission for gyro
-//     document.getElementById("startButton").addEventListener("click", () => {
-//         DeviceMotionEvent.requestPermission();
-//     });
-// }
 
 Matter.Events.on(engine, "collisionStart", event => { // If moving downward, cancel collision (let it pass through)
     for (let pair of event.pairs) {                   // If moving upward, allow collision normally
@@ -1263,6 +1258,24 @@ function showWitchMenu() {
         })
     });
     witchContainer.appendChild(clearSaveButton);
+
+    const gyroButton = createButton({
+        buttonText: gyro.enabled ? "Disable Gyro" : "Enable Gyro",
+        buttonColor: col.red,
+        onClick: () => showConfirmSplash({
+            title: "Toggle Gyro?",
+            message: gyro.enabled ? "Gyro is currently ENABLED. Do you want to disable it to save your battery?" 
+                : "Gyro is currently DISABLED. Do you want to enable it? This will drain your battery faster.",
+            cancelText: "Cancel",
+            confirmText: gyro.enabled ? "Disable Gyro" : "Enable Gyro",
+            holdToConfirm: true,
+            onConfirm: () => { 
+                gyro.enabled = !gyro.enabled; gyroButton.textContent = gyro.enabled ? "Disable Gyro" : "Enable Gyro";
+                if (typeof DeviceMotionEvent.requestPermission === "function") DeviceMotionEvent.requestPermission(); // Request permission
+            }
+        })
+    });
+    witchContainer.appendChild(gyroButton);
 
     const btnRow = quickElement("div","splash-buttons-row");
     const cancelBtn = createButton({
