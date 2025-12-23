@@ -245,9 +245,9 @@ function updateWhiteCount() {
         totalWhiteMax = ( placedYellowCount ? ( placedYellowCount==3 ? 9 : 8 ) : 7 );
     }
     if (game.activeFX.witchThreshold) totalWhiteMax = 9;
+    whiteCounter.innerHTML = `${newTotal}/${totalWhiteMax}`;
     if (newTotal != totalWhite) {
         totalWhite = newTotal;
-        whiteCounter.innerHTML = `${totalWhite}/${totalWhiteMax}`;
         const odds = Math.ceil(chipsInBag.filter(c => c.color === 'white').reduce((canBust, c) => canBust + ((c.value + totalWhite) > totalWhiteMax), 0)/chipsInBag.length*100);
         if (odds) whiteCloud.classList.add('cloud-vibrate'); else whiteCloud.classList.remove('cloud-vibrate');
         if (totalWhite > totalWhiteMax) {
@@ -1013,6 +1013,8 @@ function restartRound(round = game.roundCount) {
     resetActiveFX();
     game.roundCount = round;
     game.ratStats.value = 0;
+    totalWhite = 0;    // Current total of white chips placed
+    totalWhiteMax = 7; // Maximum total of white chips without busting (usually 7)
     writeToLog(`~~~ Started round ${game.roundCount} ~~~`, col.cyan);
     initializeTrack();
     updateWhiteCount();
@@ -1055,8 +1057,6 @@ function restartGame() { // Reset the entire game
     resetActiveFX();
     chipsOwned = [...starterChips]; // Chips in bag at start of game, added to in shop phase
     chipsInBag = [...starterChips]; // Chips in bag at start of each round, chips removed as they are drawn
-    totalWhite = 0;    // Current total of white chips placed
-    totalWhiteMax = 7; // Maximum total of white chips without busting (usually 7)
     chipsRedAside = []; // List of Red B chips, to be placed at end of round, or saved until next round
     game.chipVariants = game?.chipVariants ?? { green:'A', red:'A', blue:'A', yellow:'A', orange:'A', black:'A', purple:'A', white:'A' };
     showVariantMenu();
