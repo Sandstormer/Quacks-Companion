@@ -255,10 +255,11 @@ function updateWhiteCount() {
             whiteCloud.classList = 'cloud-burst';
             setTimeout(() => { createBustForce(); }, 1200); 
             drawBtn.innerHTML = 'BUST!';
-        } else if (totalWhite > 0) {
+        } else {
             drawBtn.innerHTML = 'Draw Chip';
             whiteCloud.src = "ui/cloud.png";
-            whiteCloud.classList.remove('cloud-pulse');  void whiteCloud.offsetWidth;  whiteCloud.classList.add('cloud-pulse');
+            whiteCloud.classList.remove('cloud-burst');
+            if (totalWhite > 0) { whiteCloud.classList.remove('cloud-pulse');  void whiteCloud.offsetWidth;  whiteCloud.classList.add('cloud-pulse'); }
         };
     }
 }
@@ -1146,6 +1147,7 @@ function showWitchMenu() {
     // box.appendChild(msgElem);
     const witchContainer = quickElement("div","witch-container");
 
+    witchContainer.appendChild(quickElement("div","witch-message","Modify Chips:"));
     const redoButton = createButton({
         buttonText: "Re-do buy phase",
         buttonColor: col.palepurple,
@@ -1158,7 +1160,6 @@ function showWitchMenu() {
         }
     });
     witchContainer.appendChild(redoButton);
-
     const addChipButton = createButton({
         buttonText: "Add chip to bag",
         buttonColor: col.palepurple,
@@ -1184,7 +1185,6 @@ function showWitchMenu() {
         })
     });
     witchContainer.appendChild(addChipButton);
-
     const removeChipButton = createButton({
         buttonText: "Remove chip from bag",
         buttonColor: col.palepurple,
@@ -1209,6 +1209,7 @@ function showWitchMenu() {
     });
     witchContainer.appendChild(removeChipButton);
     
+    witchContainer.appendChild(quickElement("div","witch-message","<hr>Free Upgrades:"));
     const refillPotionButton = createButton({
         buttonText: "Refill potion",
         buttonColor: col.palepurple,
@@ -1223,7 +1224,6 @@ function showWitchMenu() {
         })
     });
     witchContainer.appendChild(refillPotionButton);
-
     const upgradeDropletBtn = createButton({
         buttonText: "Upgrade droplet",
         buttonColor: col.palepurple,
@@ -1246,7 +1246,7 @@ function showWitchMenu() {
     });
     witchContainer.appendChild(upgradeDropletBtn);
 
-    // witchContainer.appendChild(quickElement("div","splash-message","Activate effect for round:"))
+    witchContainer.appendChild(quickElement("div","witch-message","<hr>Activate effect for round:"))
     const witchOrangeButton = createButton({
         buttonText: game.activeFX.witchOrange ? "Disable Orange Boost" : "Activate Orange Boost",
         buttonColor: col.palepurple,
@@ -1282,7 +1282,7 @@ function showWitchMenu() {
     });
     witchContainer.appendChild(witchWhiteButton);
 
-    witchContainer.appendChild(quickElement("div","splash-message","Peek and place a chip from bag:"))
+    witchContainer.appendChild(quickElement("div","witch-message","<hr>Peek and place a chip from bag:"));
     const witchPeekRow = quickElement("div","splash-buttons-row");
     witchPeekRow.style.marginTop = "-10px";
     [1,2,3,4,5].forEach(value => {
@@ -1301,7 +1301,7 @@ function showWitchMenu() {
                     onConfirm: (selectedChips) => { if (selectedChips.length) {
                         writeToLog(`Used witch effect to peek at chips`, col.pink);
                         writeToLog(`Placed ${selectedChips[0].color} ${selectedChips[0].value}-chip`, col.pink);
-                        placeChip(removeChipFromBag(selectedChips[0])) // Place selected chip
+                        placeChip(removeChipFromBag(selectedChips[0])); // Place selected chip
                     } }
                 });
                 document.body.removeChild(overlay);
@@ -1311,7 +1311,7 @@ function showWitchMenu() {
     });
     witchContainer.appendChild(witchPeekRow);
 
-    witchContainer.appendChild(quickElement("div","splash-message","Peek and upgrade a chip from bag:"))
+    witchContainer.appendChild(quickElement("div","witch-message","Peek and upgrade a chip from bag:"));
     const witchUpgradeRow = quickElement("div","splash-buttons-row");
     witchUpgradeRow.style.marginTop = "-10px";
     ["All",2,3,4,5].forEach(value => {
@@ -1331,8 +1331,8 @@ function showWitchMenu() {
                     showGold: false,
                     onConfirm: (selectedChips) => { if (selectedChips.length) {
                         const chip = selectedChips[0];  const prevText = `${chip.color} ${chip.value}-chip`;
-                        chip.value = ( chip.value==2 ? 4 : 2 );  restartRound();
                         writeToLog(`Witch Effect: Upgraded ${prevText} to ${chip.value}-chip`, col.pink);
+                        chip.value = ( chip.value==2 ? 4 : 2 );  restartRound();
                     } }
                 });
                 document.body.removeChild(overlay);
@@ -1342,6 +1342,7 @@ function showWitchMenu() {
     });
     witchContainer.appendChild(witchUpgradeRow);
 
+    witchContainer.appendChild(quickElement("div","witch-message","<hr>Game Options:"));
     const restartRoundButton = createButton({
         buttonText: "Restart Round",
         buttonColor: col.red,
@@ -1356,7 +1357,6 @@ function showWitchMenu() {
         })
     });
     witchContainer.appendChild(restartRoundButton);
-
     const restartGameButton = createButton({
         buttonText: "Restart Game",
         buttonColor: col.red,
@@ -1370,7 +1370,6 @@ function showWitchMenu() {
         })
     });
     witchContainer.appendChild(restartGameButton);
-
     const clearSaveButton = createButton({
         buttonText: "Clear Save",
         buttonColor: col.red,
@@ -1384,12 +1383,10 @@ function showWitchMenu() {
                 const url = new URL(window.location.href);
                 url.searchParams.set('_v', Date.now());
                 window.location.replace(url.toString());
-                // document.body.removeChild(overlay); 
             }
         })
     });
     witchContainer.appendChild(clearSaveButton);
-
     const gyroButton = createButton({
         buttonText: gyro.enabled ? "Disable Gyro" : "Enable Gyro",
         buttonColor: col.red,
@@ -1416,7 +1413,9 @@ function showWitchMenu() {
     });
     btnRow.appendChild(cancelBtn);
 
+    box.appendChild(document.createElement('hr'));
     box.appendChild(witchContainer);
+    box.appendChild(document.createElement('hr'));
     box.appendChild(btnRow);
     overlay.appendChild(box);
     document.body.appendChild(overlay);

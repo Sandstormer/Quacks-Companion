@@ -13,12 +13,6 @@ body {
     font-family: Arial, Helvetica, sans-serif, sans-serif;
 }
 #staticContainer {
-    min-width: 300px;
-    width: 100vw;
-    max-width: min(500px, 100vw);
-    min-height: 500px;
-    height: 100vh;
-    max-height: min(900px, 100vh);
     overflow: hidden;
 }
 #mainContainer {
@@ -32,7 +26,6 @@ body {
     max-height: min(900px, 100vh);
     margin: auto;
     border-radius: 8px;
-    /* background: #151019; */
     background-image: url("ui/woodh.png");
     background-size: cover;
 }
@@ -347,6 +340,7 @@ button {
     max-height: calc(100vh - 300px);
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 .log-row {
     display: grid;
@@ -361,13 +355,14 @@ button {
 }
 .splash-btn {
     flex: 1;
-    padding: 12px;
+    padding: 12px 0px;
     font-size: 18px;
     line-height: 1;
     border-radius: 8px;
     border: none;
     position: relative;
     overflow: hidden;
+    min-height: 42px;
 }
 .splash-btn-hold-bar {
     position: absolute;
@@ -430,6 +425,17 @@ button {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    max-height: calc(80vh - 130px);
+    overflow-y: scroll;
+    margin: 10px 0px -4px;
+}
+.witch-message {
+    line-height: 1.4;
+    font-size: 18px;
+    line-height: 150%;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 .variant-selector {
     display: flex;
