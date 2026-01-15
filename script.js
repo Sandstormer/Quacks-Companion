@@ -510,7 +510,6 @@ resizeCanvasToParent(); // Initial resize (after DOM is ready)
 window.addEventListener("resize", resizeCanvasToParent); // Update on window resize
 const engine = Matter.Engine.create();
 const world = engine.world;
-engine.world.gravity.y = 1.5;
 engine.enableSleeping = true;
 const render = Matter.Render.create({
     canvas: canvas,
@@ -528,8 +527,11 @@ const runner = Matter.Runner.create();
 Matter.Render.run(render);
 Matter.Runner.run(runner, engine);
 
-let gyro = { enabled: false, lockout: false, granted: (typeof DeviceMotionEvent?.requestPermission !== "function"),
-    factor: 0.25, shakeFactor: 0.5, spinFactor: 0.00005 };
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const needsGyroPermission = (typeof DeviceMotionEvent?.requestPermission !== "function");
+let gyro = { enabled: !needsGyroPermission, lockout: false, granted: !needsGyroPermission,
+    factor: 0.25, shakeFactor: 0.5, spinFactor: 0.00005, globalFactor: ( isIOS ? -1 : 1 ) };
+engine.world.gravity.y = 1.5 * gyro.globalFactor;
 
 function resizeCanvasToParent() { // Set the proper size for the canvas
     // Make sure parent has been laid out
@@ -550,8 +552,8 @@ window.addEventListener("devicemotion", e => {
     if (gyro.enabled) {
         let grav = e.accelerationIncludingGravity;
         const accel = e.acceleration;
-        engine.world.gravity.x = -grav.x*gyro.factor - accel.x*gyro.shakeFactor;
-        engine.world.gravity.y = ( gyro.lockout ? 1.5 : grav.y*gyro.factor + accel.y*gyro.shakeFactor );
+        engine.world.gravity.x = (-grav.x*gyro.factor - accel.x*gyro.shakeFactor) * gyro.globalFactor;
+        engine.world.gravity.y = ( gyro.lockout ? 1.5 : grav.y*gyro.factor + accel.y*gyro.shakeFactor ) * gyro.globalFactor;
 
         // rotationRate.gamma = rotation around Z axis (how fast user twists the phone)
         const spin = e.rotationRate?.gamma || 0;
@@ -1396,20 +1398,22 @@ function showWitchMenu() {
                 window.DeviceMotionEvent?.requestPermission ||
                 window.DeviceOrientationEvent?.requestPermission;
             if (typeof request === "function" && !gyro.granted) { // For iOS
-            DeviceMotionEvent.requestPermission().then(state => {
-                if (state === "granted") {
-                    gyro.enabled = !gyro.enabled;  gyro.granted = true;
-                    gyroButton.textContent = gyro.enabled ? "Disable Gyro" : "Enable Gyro";
-                } else {
-                    alert("Motion access denied");
-                }
-            });
-        } else { // Non-iOS browsers
-            gyro.enabled = !gyro.enabled;
-            gyroButton.textContent = gyro.enabled ? "Disable Gyro" : "Enable Gyro";
-        }
+                DeviceMotionEvent.requestPermission().then(state => {
+                    if (state === "granted") {
+                        toggleGyro();
+                    } else {
+                        alert("Motion access denied");
+                    }
+                });
+            } else { // Non-iOS browsers
+                toggleGyro();
+            }
         }
     });
+    function toggleGyro() {
+        gyro.enabled = !gyro.enabled;  gyro.granted = true;  gyro.globalFactor = ( isIOS ? -1 : 1 );
+        gyroButton.textContent = gyro.enabled ? "Disable Gyro" : "Enable Gyro";
+    }
     witchContainer.appendChild(gyroButton);
 
     const btnRow = quickElement("div","splash-buttons-row");
