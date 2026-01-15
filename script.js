@@ -528,7 +528,8 @@ const runner = Matter.Runner.create();
 Matter.Render.run(render);
 Matter.Runner.run(runner, engine);
 
-let gyro = { enabled: false, lockout: false, factor: 0.25, shakeFactor: 0.5, spinFactor: 0.00005 };
+let gyro = { enabled: false, lockout: false, granted: (typeof DeviceMotionEvent?.requestPermission !== "function"),
+    factor: 0.25, shakeFactor: 0.5, spinFactor: 0.00005 };
 
 function resizeCanvasToParent() { // Set the proper size for the canvas
     // Make sure parent has been laid out
@@ -1389,19 +1390,25 @@ function showWitchMenu() {
     witchContainer.appendChild(clearSaveButton);
     const gyroButton = createButton({
         buttonText: gyro.enabled ? "Disable Gyro" : "Enable Gyro",
-        buttonColor: col.red,
-        onClick: () => showConfirmSplash({
-            title: "Toggle Gyro?",
-            message: gyro.enabled ? "Gyro is currently ENABLED. Do you want to disable it to save your battery?" 
-                : "Gyro is currently DISABLED. Do you want to enable it? This will drain your battery faster.",
-            cancelText: "Cancel",
-            confirmText: gyro.enabled ? "Disable Gyro" : "Enable Gyro",
-            holdToConfirm: true,
-            onConfirm: () => { 
-                gyro.enabled = !gyro.enabled; gyroButton.textContent = gyro.enabled ? "Disable Gyro" : "Enable Gyro";
-                if (typeof DeviceMotionEvent.requestPermission === "function") DeviceMotionEvent.requestPermission(); // Request permission
-            }
-        })
+        buttonColor: gyro.granted ? col.blue : col.red,
+        onClick: () =>  {
+            const request =
+                window.DeviceMotionEvent?.requestPermission ||
+                window.DeviceOrientationEvent?.requestPermission;
+            if (typeof request === "function" && !gyro.granted) { // For iOS
+            DeviceMotionEvent.requestPermission().then(state => {
+                if (state === "granted") {
+                    gyro.enabled = !gyro.enabled;  gyro.granted = true;
+                    gyroButton.textContent = gyro.enabled ? "Disable Gyro" : "Enable Gyro";
+                } else {
+                    alert("Motion access denied");
+                }
+            });
+        } else { // Non-iOS browsers
+            gyro.enabled = !gyro.enabled;
+            gyroButton.textContent = gyro.enabled ? "Disable Gyro" : "Enable Gyro";
+        }
+        }
     });
     witchContainer.appendChild(gyroButton);
 
